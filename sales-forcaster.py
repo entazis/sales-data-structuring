@@ -8,13 +8,11 @@ import pandas as pd
 import numpy as np
 from dotenv import load_dotenv
 
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 
-def get_data_from_spreadsheet(spreadsheet_id, sheet_name, range):
+def authenticate_google_sheets():
     creds = None
-    sheet_range = sheet_name + '!' + range
-
     if os.path.exists('token.pickle'):
         with open('token.pickle', 'rb') as token:
             creds = pickle.load(token)
@@ -27,12 +25,19 @@ def get_data_from_spreadsheet(spreadsheet_id, sheet_name, range):
             creds = flow.run_local_server(port=0)
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
+    return creds
+
+
+def get_data_from_spreadsheet(spreadsheet_id, sheet_name, range):
+    creds = authenticate_google_sheets()
+
+    sheet_and_range = sheet_name + '!' + range
 
     service = build('sheets', 'v4', credentials=creds)
 
     sheet = service.spreadsheets()
     result = sheet.values().get(spreadsheetId=spreadsheet_id,
-                                range=sheet_range).execute()
+                                range=sheet_and_range).execute()
     values = result.get('values', [])
     headers = values.pop(0)
 
@@ -40,8 +45,33 @@ def get_data_from_spreadsheet(spreadsheet_id, sheet_name, range):
         print('No data found.')
         return pd.DataFrame()
     else:
-        print('Data successfully got from spreadsheet')
+        print('Data successfully got from spreadsheet!')
         return pd.DataFrame(values, columns=headers)
+
+
+def upload_data_to_sheet(values, spreadsheet_id, sheet_name, range):
+    creds = authenticate_google_sheets()
+
+    sheet_and_range = sheet_name + '!' + range
+
+    service = build('sheets', 'v4', credentials=creds)
+
+    body = {
+        'values': values
+    }
+    value_input_option = 'RAW'
+
+    result = service.spreadsheets().values().update(
+        spreadsheetId=spreadsheet_id, range=sheet_and_range,
+        valueInputOption=value_input_option, body=body).execute()
+    print('{0} cells updated.'.format(result.get('updatedCells')))
+
+    if result.get('updatedCells') < 1:
+        print('No cells were updated')
+        return False
+    else:
+        print('Some cells were successfully updated!')
+        return True
 
 
 def parse_liquidation_limits(df):
@@ -79,6 +109,12 @@ def get_liquidation_orders(orders_df, liquidataion_limit_df):
     return orders_liquidation
 
 
+def format_for_google_sheet_upload(df):
+    headers = [list(df.columns.values)]
+    values = df.values.tolist()
+    return headers + values
+
+
 def main():
     load_dotenv()
 
@@ -99,6 +135,12 @@ def main():
     qty_sum = liquidation_sales.groupby(['Product Group', 'SKU_x', 'Year', 'Month'])['Qty'].sum()
     customer_pays_mean = liquidation_sales.groupby(['Product Group', 'SKU_x', 'Year', 'Month'])['Customer Pays'].mean()
     calc_historical_liquidation = pd.concat([qty_sum, customer_pays_mean], axis=1).reset_index()
+
+    upload_data_to_sheet(
+        format_for_google_sheet_upload(calc_historical_liquidation),
+        os.getenv('SPREADSHEET_ID'),
+        'python',
+        'A:F')
 
     pass
 
