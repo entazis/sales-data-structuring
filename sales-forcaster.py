@@ -59,7 +59,7 @@ def parse_orders(df):
         .replace('[\$,]', '', regex=True)\
         .replace('', np.nan)
     df.dropna(subset=['Price', 'Customer Pays'], inplace=True)
-    df[['Price', 'Customer Pays']] = df[['Price', 'Customer Pays']].astype(float)
+    df[['Qty', 'Price', 'Customer Pays']] = df[['Qty', 'Price', 'Customer Pays']].astype(float)
 
     df['Year'] = pd.DatetimeIndex(df['Order Date']).year.astype(int)
     df['Month'] = pd.DatetimeIndex(df['Order Date']).strftime('%B')
@@ -68,7 +68,7 @@ def parse_orders(df):
     return df
 
 
-def get_liquidation_sales(orders_df, liquidataion_limit_df):
+def get_liquidation_orders(orders_df, liquidataion_limit_df):
     orders_with_liquidation_limit = pd.merge(orders_df, liquidataion_limit_df,
                                  how='left',
                                  on=['Year', 'Month', 'Product Group'])
@@ -92,7 +92,15 @@ def main():
     # orders_amazon = orders[orders['Sales Channel'] == 'Amazon.com']
     # orders_non_amazon = orders[orders['Sales Channel'] == 'Non-Amazon']
 
-    liquidation_sales = get_liquidation_sales(orders, liquidataion_limit)
+    liquidation_sales = get_liquidation_orders(orders, liquidataion_limit)[[
+        'Product Group', 'SKU_x', 'Promotion Ids', 'Year', 'Month', 'Qty', 'Customer Pays'
+    ]]
+    liquidation_sales['Type'] = 'Liquidation'
+    qty_sum = liquidation_sales.groupby(['Product Group', 'SKU_x', 'Year', 'Month'])['Qty'].sum()
+    customer_pays_mean = liquidation_sales.groupby(['Product Group', 'SKU_x', 'Year', 'Month'])['Customer Pays'].mean()
+    calc_historical_liquidation = pd.concat([qty_sum, customer_pays_mean], axis=1).reset_index()
+
+    pass
 
 
 if __name__ == '__main__':
