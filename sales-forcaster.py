@@ -33,20 +33,30 @@ def get_data_from_spreadsheet(spreadsheet_id, sheet_name, range):
     result = sheet.values().get(spreadsheetId=spreadsheet_id,
                                 range=sheet_range).execute()
     values = result.get('values', [])
+    headers = values.pop(0)
 
     if not values:
         print('No data found.')
         return pd.DataFrame()
     else:
         print('Data successfully got from spreadsheet')
-        return pd.DataFrame.from_records(values)
+        return pd.DataFrame(values, columns=headers)
 
+
+def parse_liquidation_limits(df):
+    df = df.astype({'Standard Price': 'float'})
+    df['Liquidation Limit'] = \
+        df['Liquidation Limit'].replace('[\%,]', '', regex=True).astype(float) / 100
+    df['Price Limit'] = \
+        df['Standard Price'] * (1-df['Liquidation Limit'])
+    return df
 
 def main():
     load_dotenv()
 
-    liquidataion_limit_df = get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'FT-Std. Price', 'A:F')
-    print(liquidataion_limit_df)
+    liquidataion_limit_df = parse_liquidation_limits(
+        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'FT-Std. Price', 'A:F')
+    )
 
 
 if __name__ == '__main__':
