@@ -134,7 +134,7 @@ def format_for_google_sheet_upload(df):
 def main():
     load_dotenv()
 
-    liquidataion_limit = parse_liquidation_limits(
+    liquidation_limit = parse_liquidation_limits(
         get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'FT-Std. Price')
     )
     out_of_stock_days = parse_out_of_stock_days(
@@ -145,7 +145,7 @@ def main():
             get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders')
         ), out_of_stock_days)
 
-    liquidation_sales = get_liquidation_orders(orders, liquidataion_limit)
+    liquidation_sales = get_liquidation_orders(orders, liquidation_limit)
     liquidation_sales['Sales Type'] = 'Liquidation'
     liquidation_sales['Fulfillment Type'] = ''
 
@@ -167,10 +167,8 @@ def main():
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_liquidation),
         os.getenv('SPREADSHEET_ID'),
-        'python'
+        'python-liquidation'
     )
-
-    pass
 
 
 if __name__ == '__main__':
