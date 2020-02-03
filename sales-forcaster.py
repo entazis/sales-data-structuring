@@ -140,12 +140,18 @@ def main():
     out_of_stock_days = parse_out_of_stock_days(
         get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Stockout Days')
     )
-    orders = add_out_of_stock_days(
-        parse_orders(
-            get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders')
-        ), out_of_stock_days)
+    orders = parse_orders(
+        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders')
+    )
 
-    liquidation_sales = get_liquidation_orders(orders, liquidation_limit)
+    orders_with_out_of_stock = add_out_of_stock_days(orders, out_of_stock_days)
+    liquidation_sales = get_liquidation_orders(orders_with_out_of_stock, liquidation_limit)
+
+    amazon_orders = orders[
+        (orders['Sales Channel'] != 'Non-Amazon')
+        & (orders['Promotion Ids'] == '')
+    ]
+
     liquidation_sales['Sales Type'] = 'Liquidation'
     liquidation_sales['Fulfillment Type'] = ''
 
