@@ -81,6 +81,7 @@ def parse_liquidation_limits(df):
         df['Liquidation Limit'].replace('[\%,]', '', regex=True).astype(float) / 100
     df['Price Limit'] = \
         df['Standard Price'] * (1-df['Liquidation Limit'])
+    df.drop('SKU', 1, inplace=True)
     return df
 
 
@@ -98,6 +99,14 @@ def parse_orders(df):
     return df
 
 
+def parse_out_of_stock_days(df):
+    df['Year'] = pd.DatetimeIndex(df['End']).year.astype(int)
+    df['Month'] = pd.DatetimeIndex(df['End']).strftime('%B')
+    df['Day'] = pd.DatetimeIndex(df['End']).day.astype(int)
+
+    return df
+
+
 def get_liquidation_orders(orders_df, liquidataion_limit_df):
     orders_with_liquidation_limit = pd.merge(orders_df, liquidataion_limit_df,
                                  how='left',
@@ -107,6 +116,13 @@ def get_liquidation_orders(orders_df, liquidataion_limit_df):
         orders_with_liquidation_limit['Customer Pays'] <= orders_with_liquidation_limit['Price Limit']
         ]
     return orders_liquidation
+
+
+def add_out_of_stock_days(orders_df, out_of_stock_df):
+    orders_with_out_of_stock_days = pd.merge(orders_df, out_of_stock_df,
+                                             how='left',
+                                             on=['ASIN', 'Year', 'Month', 'Product Group'])
+    return orders_with_out_of_stock_days
 
 
 def format_for_google_sheet_upload(df):
@@ -121,19 +137,34 @@ def main():
     liquidataion_limit = parse_liquidation_limits(
         get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'FT-Std. Price', 'A:F')
     )
-    orders = parse_orders(
-        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders', 'A:CJ')
+    out_of_stock_days = parse_out_of_stock_days(
+        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Stockout Days', 'A:AU')
     )
+    orders = add_out_of_stock_days(
+        parse_orders(
+            get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders', 'A:CJ')
+        ), out_of_stock_days)
 
     # orders_amazon = orders[orders['Sales Channel'] == 'Amazon.com']
     # orders_non_amazon = orders[orders['Sales Channel'] == 'Non-Amazon']
 
-    liquidation_sales = get_liquidation_orders(orders, liquidataion_limit)[[
-        'Product Group', 'SKU_x', 'Promotion Ids', 'Year', 'Month', 'Qty', 'Customer Pays'
-    ]]
-    liquidation_sales['Type'] = 'Liquidation'
-    qty_sum = liquidation_sales.groupby(['Product Group', 'SKU_x', 'Year', 'Month'])['Qty'].sum()
-    customer_pays_mean = liquidation_sales.groupby(['Product Group', 'SKU_x', 'Year', 'Month'])['Customer Pays'].mean()
+    liquidation_sales = get_liquidation_orders(orders, liquidataion_limit)
+    liquidation_sales['Sales Type'] = 'Liquidation'
+    liquidation_sales['Fulfillment Type'] = ''
+
+    # liquidation_sales = liquidation_sales[[
+    #     'Brand', 'Country', 'Sales Channel', 'Product Group', 'ASIN', 'SKU', 'Promotion Ids',
+    #     'Year', 'Month', 'Qty', 'Customer Pays', 'Out of stock days'
+    # ]]
+
+    qty_sum = liquidation_sales.groupby([
+        'Brand', 'Country', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Promotion Ids',
+        'Year', 'Month', 'Out of stock days'
+    ])['Qty'].sum()
+    customer_pays_mean = liquidation_sales.groupby([
+        'Brand', 'Country', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Promotion Ids',
+        'Year', 'Month', 'Out of stock days'
+    ])['Customer Pays'].mean()
     calc_historical_liquidation = pd.concat([qty_sum, customer_pays_mean], axis=1).reset_index()
 
     upload_data_to_sheet(
