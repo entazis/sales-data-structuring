@@ -28,10 +28,10 @@ def authenticate_google_sheets():
     return creds
 
 
-def get_data_from_spreadsheet(spreadsheet_id, sheet_name, range):
+def get_data_from_spreadsheet(spreadsheet_id, sheet_name):
     creds = authenticate_google_sheets()
 
-    sheet_and_range = sheet_name + '!' + range
+    sheet_and_range = sheet_name
 
     service = build('sheets', 'v4', credentials=creds)
 
@@ -49,10 +49,10 @@ def get_data_from_spreadsheet(spreadsheet_id, sheet_name, range):
         return pd.DataFrame(values, columns=headers)
 
 
-def upload_data_to_sheet(values, spreadsheet_id, sheet_name, range):
+def upload_data_to_sheet(values, spreadsheet_id, sheet_name):
     creds = authenticate_google_sheets()
 
-    sheet_and_range = sheet_name + '!' + range
+    sheet_and_range = sheet_name
 
     service = build('sheets', 'v4', credentials=creds)
 
@@ -135,27 +135,19 @@ def main():
     load_dotenv()
 
     liquidataion_limit = parse_liquidation_limits(
-        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'FT-Std. Price', 'A:F')
+        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'FT-Std. Price')
     )
     out_of_stock_days = parse_out_of_stock_days(
-        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Stockout Days', 'A:AU')
+        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Stockout Days')
     )
     orders = add_out_of_stock_days(
         parse_orders(
-            get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders', 'A:CJ')
+            get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders')
         ), out_of_stock_days)
-
-    # orders_amazon = orders[orders['Sales Channel'] == 'Amazon.com']
-    # orders_non_amazon = orders[orders['Sales Channel'] == 'Non-Amazon']
 
     liquidation_sales = get_liquidation_orders(orders, liquidataion_limit)
     liquidation_sales['Sales Type'] = 'Liquidation'
     liquidation_sales['Fulfillment Type'] = ''
-
-    # liquidation_sales = liquidation_sales[[
-    #     'Brand', 'Country', 'Sales Channel', 'Product Group', 'ASIN', 'SKU', 'Promotion Ids',
-    #     'Year', 'Month', 'Qty', 'Customer Pays', 'Out of stock days'
-    # ]]
 
     qty_sum = liquidation_sales.groupby([
         'Brand', 'Country', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Promotion Ids',
@@ -170,8 +162,8 @@ def main():
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_liquidation),
         os.getenv('SPREADSHEET_ID'),
-        'python',
-        'A:F')
+        'python'
+    )
 
     pass
 
