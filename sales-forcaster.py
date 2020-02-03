@@ -144,22 +144,16 @@ def main():
         get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders')
     )
 
-    orders_with_out_of_stock = add_out_of_stock_days(orders, out_of_stock_days)
-    liquidation_sales = get_liquidation_orders(orders_with_out_of_stock, liquidation_limit)
+    liquidation_orders = get_liquidation_orders(orders, liquidation_limit)
+    liquidation_orders = add_out_of_stock_days(liquidation_orders, out_of_stock_days)
+    liquidation_orders['Sales Type'] = 'Liquidation'
+    liquidation_orders['Fulfillment Type'] = ''
 
-    amazon_orders = orders[
-        (orders['Sales Channel'] != 'Non-Amazon')
-        & (orders['Promotion Ids'] == '')
-    ]
-
-    liquidation_sales['Sales Type'] = 'Liquidation'
-    liquidation_sales['Fulfillment Type'] = ''
-
-    qty_sum = liquidation_sales.groupby([
+    qty_sum = liquidation_orders.groupby([
         'Brand', 'Country', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Sales Type', 'Promotion Ids',
         'Year', 'Month', 'Out of stock days'
     ])['Qty'].sum()
-    customer_pays_mean = liquidation_sales.groupby([
+    customer_pays_mean = liquidation_orders.groupby([
         'Brand', 'Country', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Sales Type', 'Promotion Ids',
         'Year', 'Month', 'Out of stock days'
     ])['Customer Pays'].mean()
@@ -167,7 +161,6 @@ def main():
 
     calc_historical_liquidation['Revenue'] = \
         calc_historical_liquidation['Qty'] * calc_historical_liquidation['Customer Pays']
-
     calc_historical_liquidation.rename(columns={'Qty': 'Sales QTY', 'Customer Pays': 'Avg Sale Price'}, inplace=True)
 
     upload_data_to_sheet(
