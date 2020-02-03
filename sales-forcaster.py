@@ -150,14 +150,19 @@ def main():
     liquidation_sales['Fulfillment Type'] = ''
 
     qty_sum = liquidation_sales.groupby([
-        'Brand', 'Country', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Promotion Ids',
+        'Brand', 'Country', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Sales Type', 'Promotion Ids',
         'Year', 'Month', 'Out of stock days'
     ])['Qty'].sum()
     customer_pays_mean = liquidation_sales.groupby([
-        'Brand', 'Country', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Promotion Ids',
+        'Brand', 'Country', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Sales Type', 'Promotion Ids',
         'Year', 'Month', 'Out of stock days'
     ])['Customer Pays'].mean()
     calc_historical_liquidation = pd.concat([qty_sum, customer_pays_mean], axis=1).reset_index()
+
+    calc_historical_liquidation['Revenue'] = \
+        calc_historical_liquidation['Qty'] * calc_historical_liquidation['Customer Pays']
+
+    calc_historical_liquidation.rename(columns={'Qty': 'Sales QTY', 'Customer Pays': 'Avg Sale Price'}, inplace=True)
 
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_liquidation),
