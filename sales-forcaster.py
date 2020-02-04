@@ -50,6 +50,8 @@ def upload_data_to_sheet(values, spreadsheet_id, sheet_name):
     creds = authenticate_google_sheets()
     service = build('sheets', 'v4', credentials=creds)
 
+    service.spreadsheets().values().clear(spreadsheetId=spreadsheet_id, range=sheet_name).execute()
+
     body = {
         'values': values
     }
