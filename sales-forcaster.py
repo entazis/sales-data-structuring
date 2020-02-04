@@ -103,6 +103,21 @@ def parse_out_of_stock_days(df):
     return df
 
 
+def parse_sku_mapping(df):
+    return df
+
+
+def update_product_group_using_sku_mapping(df, sku_mapping):
+    cols_to_use = df.columns.difference(sku_mapping.columns)
+    df_sku_mapped = pd.merge(df[cols_to_use], sku_mapping,
+                             how='left',
+                             left_on='SKU',
+                             right_on='Amazon-Sku')
+    df_sku_mapped.dropna(subset=['Product Group'], inplace=True)
+
+    return df_sku_mapped
+
+
 def get_liquidation_orders(orders_df, liquidataion_limit_df):
     orders_with_liquidation_limit = pd.merge(orders_df, liquidataion_limit_df,
                                  how='left',
@@ -131,14 +146,19 @@ def format_for_google_sheet_upload(df):
 def main():
     load_dotenv()
 
+    sku_mapping = parse_sku_mapping(
+        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'FT-Mapping-Sku.Asin.Group')
+    )
     liquidation_limit = parse_liquidation_limits(
         get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'FT-Std. Price')
     )
     out_of_stock_days = parse_out_of_stock_days(
         get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Stockout Days')
     )
-    orders = parse_orders(
-        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders')
+    orders = update_product_group_using_sku_mapping(
+        parse_orders(
+            get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders')
+        ), sku_mapping
     )
 
     liquidation_orders = get_liquidation_orders(orders, liquidation_limit)
