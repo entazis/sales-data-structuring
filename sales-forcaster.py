@@ -124,7 +124,7 @@ def get_liquidation_orders(orders_df, liquidataion_limit_df):
                                  on=['Year', 'Month', 'Product Group'])
     orders_with_liquidation_limit.dropna(subset=['Price Limit'], inplace=True)
     orders_liquidation = orders_with_liquidation_limit[
-        ((orders_with_liquidation_limit['Customer Pays'] / orders_with_liquidation_limit['Qty'])
+        ((orders_with_liquidation_limit['Price'] / orders_with_liquidation_limit['Qty'])
          <= orders_with_liquidation_limit['Price Limit'])
         & (orders_with_liquidation_limit['Sales Channel'] != 'Non-Amazon')
     ]
@@ -175,12 +175,12 @@ def main():
     customer_pays_mean = liquidation_orders_with_out_of_stock.groupby([
         'Brand', 'Market Place', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Sales Type',
         'Promotion Ids', 'Promotion Notes', 'Year', 'Month', 'Out of stock days'
-    ])['Customer Pays'].mean()
+    ])['Price'].mean()
 
     calc_historical_liquidation = pd.concat([qty_sum, customer_pays_mean], axis=1).reset_index()
     calc_historical_liquidation['Revenue'] = \
-        calc_historical_liquidation['Qty'] * calc_historical_liquidation['Customer Pays']
-    calc_historical_liquidation.rename(columns={'Qty': 'Sales QTY', 'Customer Pays': 'Avg Sale Price'}, inplace=True)
+        calc_historical_liquidation['Qty'] * calc_historical_liquidation['Price']
+    calc_historical_liquidation.rename(columns={'Qty': 'Sales QTY', 'Price': 'Avg Sale Price'}, inplace=True)
 
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_liquidation),
