@@ -166,14 +166,15 @@ def main():
     liquidation_orders_with_out_of_stock = add_out_of_stock_days(liquidation_orders, out_of_stock_days)
     liquidation_orders_with_out_of_stock['Sales Type'] = 'Liquidation'
     liquidation_orders_with_out_of_stock['Fulfillment Type'] = ''
+    liquidation_orders_with_out_of_stock['Promotion Notes'] = ''
 
     qty_sum = liquidation_orders_with_out_of_stock.groupby([
         'Brand', 'Market Place', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Sales Type',
-        'Promotion Ids', 'Year', 'Month', 'Out of stock days'
+        'Promotion Ids', 'Promotion Notes', 'Year', 'Month', 'Out of stock days'
     ])['Qty'].sum()
     customer_pays_mean = liquidation_orders_with_out_of_stock.groupby([
         'Brand', 'Market Place', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Sales Type',
-        'Promotion Ids', 'Year', 'Month', 'Out of stock days'
+        'Promotion Ids', 'Promotion Notes', 'Year', 'Month', 'Out of stock days'
     ])['Customer Pays'].mean()
 
     calc_historical_liquidation = pd.concat([qty_sum, customer_pays_mean], axis=1).reset_index()
@@ -193,8 +194,6 @@ def main():
         (orders_without_liquidation['Sales Channel'] != 'Non-Amazon')
         & (orders_without_liquidation['Promotion Ids'] == '')
     ]
-
-    print(amazon_orders_without_liquidation_and_promotions)
 
 
 if __name__ == '__main__':
