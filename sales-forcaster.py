@@ -124,7 +124,8 @@ def get_liquidation_orders(orders_df, liquidataion_limit_df):
                                  on=['Year', 'Month', 'Product Group'])
     orders_with_liquidation_limit.dropna(subset=['Price Limit'], inplace=True)
     orders_liquidation = orders_with_liquidation_limit[
-        (orders_with_liquidation_limit['Customer Pays'] <= orders_with_liquidation_limit['Price Limit'])
+        ((orders_with_liquidation_limit['Customer Pays'] / orders_with_liquidation_limit['Qty'])
+         <= orders_with_liquidation_limit['Price Limit'])
         & (orders_with_liquidation_limit['Sales Channel'] != 'Non-Amazon')
     ]
     return orders_liquidation
