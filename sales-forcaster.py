@@ -188,7 +188,7 @@ def main():
         'python-liquidation'
     )
 
-    orders_without_liquidation = pd.concat([orders, liquidation_orders]).drop_duplicates()
+    orders_without_liquidation = pd.concat([orders, liquidation_orders], sort=True).drop_duplicates()
 
     amazon_orders_without_liquidation_and_promotions = orders_without_liquidation[
         (orders_without_liquidation['Sales Channel'] != 'Non-Amazon')
