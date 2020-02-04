@@ -118,7 +118,7 @@ def get_liquidation_orders(orders_df, liquidataion_limit_df):
 def add_out_of_stock_days(orders_df, out_of_stock_df):
     orders_with_out_of_stock_days = pd.merge(orders_df, out_of_stock_df,
                                              how='left',
-                                             on=['ASIN', 'Year', 'Month', 'Product Group'])
+                                             on=['ASIN', 'Year', 'Month', 'Product Group', 'Market Place'])
     return orders_with_out_of_stock_days
 
 
@@ -147,12 +147,12 @@ def main():
     liquidation_orders_with_out_of_stock['Fulfillment Type'] = ''
 
     qty_sum = liquidation_orders_with_out_of_stock.groupby([
-        'Brand', 'Country', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Sales Type', 'Promotion Ids',
-        'Year', 'Month', 'Out of stock days'
+        'Brand', 'Market Place', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Sales Type',
+        'Promotion Ids', 'Year', 'Month', 'Out of stock days'
     ])['Qty'].sum()
     customer_pays_mean = liquidation_orders_with_out_of_stock.groupby([
-        'Brand', 'Country', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Sales Type', 'Promotion Ids',
-        'Year', 'Month', 'Out of stock days'
+        'Brand', 'Market Place', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Sales Type',
+        'Promotion Ids', 'Year', 'Month', 'Out of stock days'
     ])['Customer Pays'].mean()
 
     calc_historical_liquidation = pd.concat([qty_sum, customer_pays_mean], axis=1).reset_index()
