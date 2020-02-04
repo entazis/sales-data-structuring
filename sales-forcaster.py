@@ -30,14 +30,11 @@ def authenticate_google_sheets():
 
 def get_data_from_spreadsheet(spreadsheet_id, sheet_name):
     creds = authenticate_google_sheets()
-
-    sheet_and_range = sheet_name
-
     service = build('sheets', 'v4', credentials=creds)
 
     sheet = service.spreadsheets()
     result = sheet.values().get(spreadsheetId=spreadsheet_id,
-                                range=sheet_and_range).execute()
+                                range=sheet_name).execute()
     values = result.get('values', [])
     headers = values.pop(0)
 
@@ -51,9 +48,6 @@ def get_data_from_spreadsheet(spreadsheet_id, sheet_name):
 
 def upload_data_to_sheet(values, spreadsheet_id, sheet_name):
     creds = authenticate_google_sheets()
-
-    sheet_and_range = sheet_name
-
     service = build('sheets', 'v4', credentials=creds)
 
     body = {
@@ -62,7 +56,7 @@ def upload_data_to_sheet(values, spreadsheet_id, sheet_name):
     value_input_option = 'RAW'
 
     result = service.spreadsheets().values().update(
-        spreadsheetId=spreadsheet_id, range=sheet_and_range,
+        spreadsheetId=spreadsheet_id, range=sheet_name,
         valueInputOption=value_input_option, body=body).execute()
     print('{0} cells updated.'.format(result.get('updatedCells')))
 
