@@ -77,7 +77,7 @@ def parse_liquidation_limits(df):
         df['Liquidation Limit'].replace('[\%,]', '', regex=True).astype(float) / 100
     df['Price Limit'] = \
         df['Standard Price'] * (1-df['Liquidation Limit'])
-    df.drop('SKU', 1, inplace=True)
+    df.drop(columns=['Product Group'], inplace=True)
     return df
 
 
@@ -109,11 +109,7 @@ def parse_sku_mapping(df):
 
 def update_product_group_using_sku_mapping(df, sku_mapping):
     cols_to_use = df.columns.difference(sku_mapping.columns)
-    df_sku_mapped = pd.merge(df[cols_to_use], sku_mapping,
-                             how='left',
-                             left_on='SKU',
-                             right_on='Amazon-Sku')
-    df_sku_mapped.dropna(subset=['Product Group'], inplace=True)
+    df_sku_mapped = add_cin7_sku_map_for_asin(df[cols_to_use], sku_mapping)
 
     return df_sku_mapped
 
@@ -121,7 +117,7 @@ def update_product_group_using_sku_mapping(df, sku_mapping):
 def get_liquidation_orders(orders_df, liquidataion_limit_df):
     orders_with_liquidation_limit = pd.merge(orders_df, liquidataion_limit_df,
                                  how='left',
-                                 on=['Year', 'Month', 'Product Group'])
+                                 on=['Cin7', 'Year', 'Month'])
     orders_with_liquidation_limit.dropna(subset=['Price Limit'], inplace=True)
     orders_liquidation = orders_with_liquidation_limit[
         ((orders_with_liquidation_limit['Price'] / orders_with_liquidation_limit['Qty'])
@@ -132,10 +128,24 @@ def get_liquidation_orders(orders_df, liquidataion_limit_df):
 
 
 def add_out_of_stock_days(orders_df, out_of_stock_df):
-    orders_with_out_of_stock_days = pd.merge(orders_df, out_of_stock_df,
-                                             how='left',
-                                             on=['ASIN', 'Year', 'Month', 'Product Group', 'Market Place'])
+    orders_with_out_of_stock_days = pd.merge(
+        orders_df,
+        out_of_stock_df[['Cin7', 'Year', 'Month', 'Market Place', 'Out of stock days']],
+        how='left',
+        on=['Cin7', 'Year', 'Month', 'Market Place'])
+    orders_with_out_of_stock_days.fillna('-', inplace=True)
+
     return orders_with_out_of_stock_days
+
+
+def add_cin7_sku_map_for_asin(df, sku_map):
+    cols_to_use = df.columns.difference(sku_map.columns)
+    sku_mapped = pd.merge(df[cols_to_use], sku_map,
+                          how='left',
+                          left_on='ASIN',
+                          right_on='Amazon-ASIN')
+    sku_mapped.dropna(subset=['Cin7'], inplace=True)
+    return sku_mapped
 
 
 def format_for_google_sheet_upload(df):
@@ -153,34 +163,38 @@ def main():
     liquidation_limit = parse_liquidation_limits(
         get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'FT-Std. Price')
     )
-    out_of_stock_days = parse_out_of_stock_days(
-        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Stockout Days')
+    out_of_stock_days = add_cin7_sku_map_for_asin(
+        parse_out_of_stock_days(
+            get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Stockout Days')
+        ), sku_mapping
     )
     orders = update_product_group_using_sku_mapping(
-        parse_orders(
-            get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders')
-        ), sku_mapping
+            parse_orders(
+                get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders')
+            ), sku_mapping
     )
 
     liquidation_orders = get_liquidation_orders(orders, liquidation_limit)
-    liquidation_orders_with_out_of_stock = add_out_of_stock_days(liquidation_orders, out_of_stock_days)
-    liquidation_orders_with_out_of_stock['Sales Type'] = 'Liquidation'
-    liquidation_orders_with_out_of_stock['Fulfillment Type'] = ''
-    liquidation_orders_with_out_of_stock['Promotion Notes'] = ''
+    liquidation_orders['Sales Type'] = 'Liquidation'
+    liquidation_orders['Fulfillment Type'] = ''
+    liquidation_orders['Promotion Notes'] = ''
 
-    qty_sum = liquidation_orders_with_out_of_stock.groupby([
-        'Brand', 'Market Place', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Sales Type',
-        'Promotion Ids', 'Promotion Notes', 'Year', 'Month', 'Out of stock days'
+    qty_sum = liquidation_orders.groupby([
+        'Brand', 'Market Place', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'Cin7', 'Sales Type',
+        'Promotion Ids', 'Promotion Notes', 'Year', 'Month'
     ])['Qty'].sum()
-    customer_pays_mean = liquidation_orders_with_out_of_stock.groupby([
-        'Brand', 'Market Place', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'SKU', 'Sales Type',
-        'Promotion Ids', 'Promotion Notes', 'Year', 'Month', 'Out of stock days'
+    customer_pays_mean = liquidation_orders.groupby([
+        'Brand', 'Market Place', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'Cin7', 'Sales Type',
+        'Promotion Ids', 'Promotion Notes', 'Year', 'Month'
     ])['Price'].mean()
 
     calc_historical_liquidation = pd.concat([qty_sum, customer_pays_mean], axis=1).reset_index()
     calc_historical_liquidation['Revenue'] = \
         calc_historical_liquidation['Qty'] * calc_historical_liquidation['Price']
-    calc_historical_liquidation.rename(columns={'Qty': 'Sales QTY', 'Price': 'Avg Sale Price'}, inplace=True)
+    calc_historical_liquidation.rename(columns={'Qty': 'Sales QTY',
+                                                'Price': 'Avg Sale Price'}, inplace=True)
+
+    calc_historical_liquidation = add_out_of_stock_days(calc_historical_liquidation, out_of_stock_days)
 
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_liquidation),
