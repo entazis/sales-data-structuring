@@ -148,7 +148,7 @@ def main():
     load_dotenv()
 
     sku_mapping = parse_sku_mapping(
-        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'FT-Mapping-Sku.Asin.Group')
+        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Sku Dump')
     )
     liquidation_limit = parse_liquidation_limits(
         get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'FT-Std. Price')
