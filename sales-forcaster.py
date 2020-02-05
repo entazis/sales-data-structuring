@@ -1,112 +1,10 @@
 from __future__ import print_function
-import pickle
 import os.path
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
 import pandas as pd
-import numpy as np
 from dotenv import load_dotenv
 
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-
-
-def authenticate_google_sheets():
-    creds = None
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
-    return creds
-
-
-def get_data_from_spreadsheet(spreadsheet_id, sheet_name):
-    creds = authenticate_google_sheets()
-    service = build('sheets', 'v4', credentials=creds)
-
-    sheet = service.spreadsheets()
-    result = sheet.values().get(spreadsheetId=spreadsheet_id,
-                                range=sheet_name).execute()
-    values = result.get('values', [])
-    headers = values.pop(0)
-
-    if not values:
-        print('No data found.')
-        return pd.DataFrame()
-    else:
-        print('Data successfully got from spreadsheet!')
-        return pd.DataFrame(values, columns=headers)
-
-
-def upload_data_to_sheet(values, spreadsheet_id, sheet_name):
-    creds = authenticate_google_sheets()
-    service = build('sheets', 'v4', credentials=creds)
-
-    service.spreadsheets().values().clear(spreadsheetId=spreadsheet_id, range=sheet_name).execute()
-
-    body = {
-        'values': values
-    }
-    value_input_option = 'RAW'
-
-    result = service.spreadsheets().values().update(
-        spreadsheetId=spreadsheet_id, range=sheet_name,
-        valueInputOption=value_input_option, body=body).execute()
-    print('{0} cells updated.'.format(result.get('updatedCells')))
-
-    if result.get('updatedCells') < 1:
-        print('No cells were updated')
-        return False
-    else:
-        print('Some cells were successfully updated!')
-        return True
-
-
-def parse_liquidation_limits(df):
-    df = df.astype({'Standard Price': 'float'})
-    df = df.astype({'Year': 'int'})
-    df['Liquidation Limit'] = \
-        df['Liquidation Limit'].replace('[\%,]', '', regex=True).astype(float) / 100
-    df['Price Limit'] = \
-        df['Standard Price'] * (1-df['Liquidation Limit'])
-    df.drop(columns=['Product Group'], inplace=True)
-    return df
-
-
-def parse_orders(df):
-    df[['Price', 'Customer Pays']] = df[['Price', 'Customer Pays']]\
-        .replace('[\$,]', '', regex=True)\
-        .replace('', np.nan)
-    df.dropna(subset=['Price', 'Customer Pays'], inplace=True)
-    df[['Qty', 'Price', 'Customer Pays']] = df[['Qty', 'Price', 'Customer Pays']].astype(float)
-
-    df['Year'] = pd.DatetimeIndex(df['Order Date']).year.astype(int)
-    df['Month'] = pd.DatetimeIndex(df['Order Date']).strftime('%B')
-    df['Day'] = pd.DatetimeIndex(df['Order Date']).day.astype(int)
-
-    df['Price/Qty'] = df['Price'] / df['Qty']
-
-    return df
-
-
-def parse_out_of_stock_days(df):
-    df['Year'] = pd.DatetimeIndex(df['End']).year.astype(int)
-    df['Month'] = pd.DatetimeIndex(df['End']).strftime('%B')
-    df['Day'] = pd.DatetimeIndex(df['End']).day.astype(int)
-
-    return df
-
-
-def parse_sku_mapping(df):
-    return df
+from parser import *
+from gservice import *
 
 
 def update_product_group_using_sku_mapping(df, sku_mapping):
@@ -175,11 +73,13 @@ def calculate_historical_table(df):
 def main():
     load_dotenv()
 
+    authenticate_google_sheets()
+
     sku_mapping = parse_sku_mapping(
         get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Sku Dump')
     )
     liquidation_limit = parse_liquidation_limits(
-        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'FT-Std. Price')
+        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-FT-Std. Price')
     )
     out_of_stock_days = add_cin7_sku_map_for_asin(
         parse_out_of_stock_days(
