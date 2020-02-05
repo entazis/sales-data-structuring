@@ -65,17 +65,35 @@ def calculate_historical_table(df):
     return calc_historical
 
 
+def drop_y(df):
+    to_drop = [x for x in df if x.endswith('_y')]
+    df.drop(to_drop, axis=1, inplace=True)
+
+
+def rename_x(df):
+    for col in df:
+        if col.endswith('_x'):
+            df.rename(columns={col:col.rstrip('_x')}, inplace=True)
+
+
 def calculate_amazon_ppc_orders(orders, liquidation_orders, orders_non_amazon):
     amazon_ppc_orders = orders.merge(liquidation_orders, on=['Brand', 'Market Place', 'Sales Channel', 'Product Group',
                                                              'Cin7', 'Promotion Ids', 'Year', 'Month'],
                                      how='left', indicator=True)
     amazon_ppc_orders = amazon_ppc_orders[amazon_ppc_orders['_merge'] == 'left_only']
     amazon_ppc_orders.drop(['_merge'], axis=1, inplace=True)
+    amazon_ppc_orders.dropna(axis=1, how='all', inplace=True)
+    drop_y(amazon_ppc_orders)
+    rename_x(amazon_ppc_orders)
 
     amazon_ppc_orders = amazon_ppc_orders.merge(orders_non_amazon, on=['Brand', 'Market Place', 'Sales Channel', 'Product Group',
                                                                        'Cin7', 'Promotion Ids', 'Year', 'Month'],
                                                 how='left', indicator=True)
     amazon_ppc_orders = amazon_ppc_orders[amazon_ppc_orders['_merge'] == 'left_only']
+    amazon_ppc_orders.drop(['_merge'], axis=1, inplace=True)
+    amazon_ppc_orders.dropna(axis=1, how='all', inplace=True)
+    drop_y(amazon_ppc_orders)
+    rename_x(amazon_ppc_orders)
 
     return amazon_ppc_orders
 
