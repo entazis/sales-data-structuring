@@ -66,25 +66,21 @@ def calculate_historical_table(df):
 
 
 def calculate_amazon_ppc_orders(orders, liquidation_orders, orders_non_amazon):
-    amazon_ppc_orders = orders.merge(liquidation_orders, on=['Brand', 'Market Place', 'Sales Channel', 'Product Group',
-                                                             'Cin7', 'Promotion Ids', 'Year', 'Month'],
-                                     how='left', indicator=True)
-    amazon_ppc_orders = amazon_ppc_orders[amazon_ppc_orders['_merge'] == 'left_only']
-    amazon_ppc_orders.drop(['_merge'], axis=1, inplace=True)
-    amazon_ppc_orders.dropna(axis=1, how='all', inplace=True)
-    drop_y(amazon_ppc_orders)
-    rename_x(amazon_ppc_orders)
-
-    amazon_ppc_orders = amazon_ppc_orders.merge(orders_non_amazon, on=['Brand', 'Market Place', 'Sales Channel', 'Product Group',
-                                                                       'Cin7', 'Promotion Ids', 'Year', 'Month'],
-                                                how='left', indicator=True)
-    amazon_ppc_orders = amazon_ppc_orders[amazon_ppc_orders['_merge'] == 'left_only']
-    amazon_ppc_orders.drop(['_merge'], axis=1, inplace=True)
-    amazon_ppc_orders.dropna(axis=1, how='all', inplace=True)
-    drop_y(amazon_ppc_orders)
-    rename_x(amazon_ppc_orders)
-
+    amazon_ppc_orders = subtract_dataframes(orders, liquidation_orders)
+    amazon_ppc_orders = subtract_dataframes(amazon_ppc_orders, orders_non_amazon)
     return amazon_ppc_orders
+
+
+def subtract_dataframes(df1, df2):
+    result = df1.merge(df2, on=['Brand', 'Market Place', 'Sales Channel', 'Product Group',
+                                'Cin7', 'Promotion Ids', 'Year', 'Month'],
+                       how='left', indicator=True)
+    result = result[result['_merge'] == 'left_only']
+    result.drop(['_merge'], axis=1, inplace=True)
+    result.dropna(axis=1, how='all', inplace=True)
+    drop_y(result)
+    rename_x(result)
+    return result
 
 
 def drop_y(df):
