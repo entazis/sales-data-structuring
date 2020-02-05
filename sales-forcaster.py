@@ -33,7 +33,7 @@ def add_out_of_stock_days(orders_df, out_of_stock_df):
         out_of_stock_df[['Cin7', 'Year', 'Month', 'Market Place', 'Out of stock days']],
         how='left',
         on=['Cin7', 'Year', 'Month', 'Market Place'])
-    orders_with_out_of_stock_days.fillna('-', inplace=True)
+    orders_with_out_of_stock_days.fillna(0, inplace=True)
 
     return orders_with_out_of_stock_days
 
