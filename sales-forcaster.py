@@ -207,6 +207,20 @@ def main():
     calc_historical_non_amazon = calculate_historical_table(orders_non_amazon)
     calc_historical_non_amazon = add_out_of_stock_days(calc_historical_non_amazon, out_of_stock_days)
 
+    amazon_ppc_orders = orders.merge(liquidation_orders, on=['Brand', 'Market Place', 'Sales Channel', 'Product Group',
+                                                             'Cin7', 'Promotion Ids', 'Year', 'Month'],
+                                     how='left', indicator=True)
+    amazon_ppc_orders = amazon_ppc_orders[amazon_ppc_orders['_merge'] == 'left_only']
+    amazon_ppc_orders.drop(['_merge'], axis=1, inplace=True)
+
+    amazon_ppc_orders = amazon_ppc_orders.merge(orders_non_amazon, on=['Brand', 'Market Place', 'Sales Channel', 'Product Group',
+                                                                       'Cin7', 'Promotion Ids', 'Year', 'Month'],
+                                                how='left', indicator=True)
+    amazon_ppc_orders = amazon_ppc_orders[amazon_ppc_orders['_merge'] == 'left_only']
+
+    calc_historical_amazon_ppc = calculate_historical_table(amazon_ppc_orders)
+    calc_historical_amazon_ppc = add_out_of_stock_days(calc_historical_amazon_ppc, out_of_stock_days)
+
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_liquidation),
         os.getenv('SPREADSHEET_ID'),
@@ -223,6 +237,12 @@ def main():
         format_for_google_sheet_upload(calc_historical_non_amazon),
         os.getenv('SPREADSHEET_ID'),
         'python-non-amazon'
+    )
+
+    upload_data_to_sheet(
+        format_for_google_sheet_upload(calc_historical_amazon_ppc),
+        os.getenv('SPREADSHEET_ID'),
+        'python-amazon-sales-ppc'
     )
 
     orders_without_liquidation = pd.concat([orders, liquidation_orders], sort=True).drop_duplicates()
