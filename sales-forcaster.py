@@ -47,12 +47,6 @@ def add_cin7_sku_map_for_asin(df, sku_map):
     return sku_mapped
 
 
-def format_for_google_sheet_upload(df):
-    headers = [list(df.columns.values)]
-    values = df.values.tolist()
-    return headers + values
-
-
 def calculate_historical_table(df):
     qty_sum = df.groupby([
         'Brand', 'Market Place', 'Sales Channel', 'Product Group', 'Cin7', 'Promotion Ids', 'Year', 'Month'

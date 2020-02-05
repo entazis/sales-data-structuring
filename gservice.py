@@ -65,3 +65,9 @@ def upload_data_to_sheet(values, spreadsheet_id, sheet_name):
     else:
         print('Some cells were successfully updated!')
         return True
+
+
+def format_for_google_sheet_upload(df):
+    headers = [list(df.columns.values)]
+    values = df.values.tolist()
+    return headers + values
