@@ -191,6 +191,7 @@ def main():
                 get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders')
             ), sku_mapping
     )
+    orders_non_amazon = orders[orders['Sales Channel'] == 'Non-Amazon']
 
     liquidation_orders = get_liquidation_orders(orders, liquidation_limit)
     liquidation_orders['Sales Type'] = 'Liquidation'
@@ -203,9 +204,7 @@ def main():
     calc_historical_total_sales = calculate_historical_table(orders)
     calc_historical_total_sales = add_out_of_stock_days(calc_historical_total_sales, out_of_stock_days)
 
-    calc_historical_non_amazon = calculate_historical_table(orders[orders['Sales Channel'] == 'Non-Amazon'], [
-        'Brand', 'Market Place', 'Sales Channel', 'Product Group', 'Cin7', 'Promotion Ids', 'Year', 'Month'
-    ])
+    calc_historical_non_amazon = calculate_historical_table(orders_non_amazon)
     calc_historical_non_amazon = add_out_of_stock_days(calc_historical_non_amazon, out_of_stock_days)
 
     upload_data_to_sheet(
