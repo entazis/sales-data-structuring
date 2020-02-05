@@ -155,9 +155,13 @@ def format_for_google_sheet_upload(df):
     return headers + values
 
 
-def calculate_historical_table(df, group_by):
-    qty_sum = df.groupby(group_by)['Qty'].sum()
-    customer_pays_mean = df.groupby(group_by)['Price/Qty'].mean()
+def calculate_historical_table(df):
+    qty_sum = df.groupby([
+        'Brand', 'Market Place', 'Sales Channel', 'Product Group', 'Cin7', 'Promotion Ids', 'Year', 'Month'
+    ])['Qty'].sum()
+    customer_pays_mean = df.groupby([
+        'Brand', 'Market Place', 'Sales Channel', 'Product Group', 'Cin7', 'Promotion Ids', 'Year', 'Month'
+    ])['Price/Qty'].mean()
 
     calc_historical = pd.concat([qty_sum, customer_pays_mean], axis=1).reset_index()
     calc_historical['Revenue'] = \
@@ -193,15 +197,10 @@ def main():
     liquidation_orders['Fulfillment Type'] = ''
     liquidation_orders['Promotion Notes'] = ''
 
-    calc_historical_liquidation = calculate_historical_table(liquidation_orders, [
-        'Brand', 'Market Place', 'Sales Channel', 'Fulfillment Type', 'Product Group', 'Cin7', 'Sales Type',
-        'Promotion Ids', 'Promotion Notes', 'Year', 'Month'
-    ])
+    calc_historical_liquidation = calculate_historical_table(liquidation_orders)
     calc_historical_liquidation = add_out_of_stock_days(calc_historical_liquidation, out_of_stock_days)
 
-    calc_historical_total_sales = calculate_historical_table(orders, [
-        'Brand', 'Market Place', 'Sales Channel', 'Product Group', 'Cin7', 'Promotion Ids', 'Year', 'Month'
-    ])
+    calc_historical_total_sales = calculate_historical_table(orders)
     calc_historical_total_sales = add_out_of_stock_days(calc_historical_total_sales, out_of_stock_days)
 
     calc_historical_non_amazon = calculate_historical_table(orders[orders['Sales Channel'] == 'Non-Amazon'], [
