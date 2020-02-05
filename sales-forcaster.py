@@ -64,6 +64,21 @@ def calculate_historical_table(df):
     return calc_historical
 
 
+def calculate_amazon_ppc_orders(orders, liquidation_orders, orders_non_amazon):
+    amazon_ppc_orders = orders.merge(liquidation_orders, on=['Brand', 'Market Place', 'Sales Channel', 'Product Group',
+                                                             'Cin7', 'Promotion Ids', 'Year', 'Month'],
+                                     how='left', indicator=True)
+    amazon_ppc_orders = amazon_ppc_orders[amazon_ppc_orders['_merge'] == 'left_only']
+    amazon_ppc_orders.drop(['_merge'], axis=1, inplace=True)
+
+    amazon_ppc_orders = amazon_ppc_orders.merge(orders_non_amazon, on=['Brand', 'Market Place', 'Sales Channel', 'Product Group',
+                                                                       'Cin7', 'Promotion Ids', 'Year', 'Month'],
+                                                how='left', indicator=True)
+    amazon_ppc_orders = amazon_ppc_orders[amazon_ppc_orders['_merge'] == 'left_only']
+
+    return amazon_ppc_orders
+
+
 def main():
     load_dotenv()
 
@@ -91,7 +106,6 @@ def main():
     liquidation_orders['Sales Type'] = 'Liquidation'
     liquidation_orders['Fulfillment Type'] = ''
     liquidation_orders['Promotion Notes'] = ''
-
     calc_historical_liquidation = calculate_historical_table(liquidation_orders)
     calc_historical_liquidation = add_out_of_stock_days(calc_historical_liquidation, out_of_stock_days)
 
@@ -101,16 +115,7 @@ def main():
     calc_historical_non_amazon = calculate_historical_table(orders_non_amazon)
     calc_historical_non_amazon = add_out_of_stock_days(calc_historical_non_amazon, out_of_stock_days)
 
-    amazon_ppc_orders = orders.merge(liquidation_orders, on=['Brand', 'Market Place', 'Sales Channel', 'Product Group',
-                                                             'Cin7', 'Promotion Ids', 'Year', 'Month'],
-                                     how='left', indicator=True)
-    amazon_ppc_orders = amazon_ppc_orders[amazon_ppc_orders['_merge'] == 'left_only']
-    amazon_ppc_orders.drop(['_merge'], axis=1, inplace=True)
-
-    amazon_ppc_orders = amazon_ppc_orders.merge(orders_non_amazon, on=['Brand', 'Market Place', 'Sales Channel', 'Product Group',
-                                                                       'Cin7', 'Promotion Ids', 'Year', 'Month'],
-                                                how='left', indicator=True)
-    amazon_ppc_orders = amazon_ppc_orders[amazon_ppc_orders['_merge'] == 'left_only']
+    amazon_ppc_orders = calculate_amazon_ppc_orders(orders, liquidation_orders, orders_non_amazon)
 
     calc_historical_amazon_ppc = calculate_historical_table(amazon_ppc_orders)
     calc_historical_amazon_ppc = add_out_of_stock_days(calc_historical_amazon_ppc, out_of_stock_days)
@@ -138,13 +143,6 @@ def main():
         os.getenv('SPREADSHEET_ID'),
         'python-amazon-sales-ppc'
     )
-
-    orders_without_liquidation = pd.concat([orders, liquidation_orders], sort=True).drop_duplicates()
-
-    amazon_orders_without_liquidation_and_promotions = orders_without_liquidation[
-        (orders_without_liquidation['Sales Channel'] != 'Non-Amazon')
-        & (orders_without_liquidation['Promotion Ids'] == '')
-    ]
 
 
 if __name__ == '__main__':
