@@ -22,6 +22,7 @@ def get_liquidation_orders(orders_df, liquidataion_limit_df):
     orders_liquidation = orders_with_liquidation_limit[
         (orders_with_liquidation_limit['Price/Qty'] <= orders_with_liquidation_limit['Price Limit'])
         & (orders_with_liquidation_limit['Sales Channel'] != 'Non-Amazon')
+        & (orders_with_liquidation_limit['Customer Pays'] != 0)
     ]
     return orders_liquidation
 
