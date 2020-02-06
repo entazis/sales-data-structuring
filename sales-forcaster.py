@@ -115,7 +115,10 @@ def main():
                 get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders')
             ), sku_mapping
     )
+    orders = orders[['Cin7', 'Year', 'Month', 'Day', 'Market Place', 'Sales Channel',
+                     'Brand', 'Product Group', 'Qty', 'Price', 'Price/Qty', 'Customer Pays']]
     orders_non_amazon = orders[orders['Sales Channel'] == 'Non-Amazon']
+    out_of_stock_days = out_of_stock_days[['Year', 'Month', 'Cin7', 'Market Place', 'Out of stock days']]
 
     liquidation_orders = get_liquidation_orders(orders, liquidation_limit)
     liquidation_orders['Sales Type'] = 'Liquidation'
