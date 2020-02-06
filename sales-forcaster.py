@@ -50,10 +50,10 @@ def add_cin7_sku_map_for_asin(df, sku_map):
 
 def calculate_historical_table(df):
     qty_sum = df.groupby([
-        'Brand', 'Market Place', 'Sales Channel', 'Product Group', 'Cin7', 'Promotion Ids', 'Year', 'Month'
+        'Brand', 'Market Place', 'Sales Channel', 'Product Group', 'Cin7', 'Year', 'Month'
     ])['Qty'].sum()
     customer_pays_mean = df.groupby([
-        'Brand', 'Market Place', 'Sales Channel', 'Product Group', 'Cin7', 'Promotion Ids', 'Year', 'Month'
+        'Brand', 'Market Place', 'Sales Channel', 'Product Group', 'Cin7', 'Year', 'Month'
     ])['Price/Qty'].mean()
 
     calc_historical = pd.concat([qty_sum, customer_pays_mean], axis=1).reset_index()
@@ -73,7 +73,7 @@ def calculate_amazon_ppc_orders(orders, liquidation_orders, orders_non_amazon):
 
 def subtract_dataframes(df1, df2):
     result = df1.merge(df2, on=['Brand', 'Market Place', 'Sales Channel', 'Product Group',
-                                'Cin7', 'Promotion Ids', 'Year', 'Month'],
+                                'Cin7', 'Year', 'Month'],
                        how='left', indicator=True)
     result = result[result['_merge'] == 'left_only']
     result.drop(['_merge'], axis=1, inplace=True)
@@ -119,8 +119,8 @@ def main():
 
     liquidation_orders = get_liquidation_orders(orders, liquidation_limit)
     liquidation_orders['Sales Type'] = 'Liquidation'
-    liquidation_orders['Fulfillment Type'] = ''
-    liquidation_orders['Promotion Notes'] = ''
+    # liquidation_orders['Fulfillment Type'] = ''
+    # liquidation_orders['Promotion Notes'] = ''
     calc_historical_liquidation = calculate_historical_table(liquidation_orders)
     calc_historical_liquidation = add_out_of_stock_days(calc_historical_liquidation, out_of_stock_days)
 
