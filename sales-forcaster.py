@@ -70,12 +70,6 @@ def calculate_historical_table(df):
     return calc_historical
 
 
-def calculate_amazon_ppc_orders(orders, liquidation_orders, orders_non_amazon):
-    amazon_ppc_orders = subtract_dataframes(orders, liquidation_orders)
-    amazon_ppc_orders = subtract_dataframes(amazon_ppc_orders, orders_non_amazon)
-    return amazon_ppc_orders
-
-
 def subtract_dataframes(df1, df2):
     result = df1.merge(df2, on=['Brand', 'Market Place', 'Sales Channel', 'Product Group',
                                 'Cin7', 'Year', 'Month'],
@@ -125,19 +119,10 @@ def main():
 
     liquidation_orders = get_liquidation_orders(orders_amazon, liquidation_limit)
 
-    calc_historical_liquidation = calculate_historical_table(liquidation_orders)
-    # calc_historical_liquidation = add_out_of_stock_days(calc_historical_liquidation, out_of_stock)
-
     calc_historical_total_sales = calculate_historical_table(orders)
-    # calc_historical_total_sales = add_out_of_stock_days(calc_historical_total_sales, out_of_stock)
-
+    calc_historical_liquidation = calculate_historical_table(liquidation_orders)
     calc_historical_non_amazon = calculate_historical_table(orders_non_amazon)
-    # calc_historical_non_amazon = add_out_of_stock_days(calc_historical_non_amazon, out_of_stock)
-
-    amazon_ppc_orders = calculate_amazon_ppc_orders(orders, liquidation_orders, orders_non_amazon)
-
-    calc_historical_amazon_ppc = calculate_historical_table(amazon_ppc_orders)
-    # calc_historical_amazon_ppc = add_out_of_stock_days(calc_historical_amazon_ppc, out_of_stock)
+    calc_historical_amazon = calculate_historical_table(orders_amazon)
 
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_liquidation),
