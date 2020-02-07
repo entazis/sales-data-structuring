@@ -73,7 +73,7 @@ def calculate_historical_table(df):
 def sum_ppc_orders_by_product_group(df):
     # TODO comment back after cin7
     qty_sum = df.groupby([
-        'Year', 'Month', 'Day', 'Brand', 'Product Group'
+        'Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'
     ])['PPC Orders'].sum()
     ppc_sums = qty_sum.reset_index()
     return ppc_sums
