@@ -97,6 +97,10 @@ def rename_x(df):
 def main():
     load_dotenv()
 
+    sales_df = read_sales_xlsx('sales.xlsx')
+    outofstock_df = read_out_of_stock_csv('Input Stock Out Days/INVENTORY-20200205-200523-january-2020-stock-outdays.csv')
+    orders_df = read_orders_csv('ORDERS-20200206-141613-Bear-Butt.csv')
+
     authenticate_google_sheets()
 
     sku_mapping = parse_sku_mapping(
@@ -122,8 +126,7 @@ def main():
 
     liquidation_orders = get_liquidation_orders(orders, liquidation_limit)
     liquidation_orders['Sales Type'] = 'Liquidation'
-    # liquidation_orders['Fulfillment Type'] = ''
-    # liquidation_orders['Promotion Notes'] = ''
+
     calc_historical_liquidation = calculate_historical_table(liquidation_orders)
     calc_historical_liquidation = add_out_of_stock_days(calc_historical_liquidation, out_of_stock_days)
 

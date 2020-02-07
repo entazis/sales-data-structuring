@@ -41,7 +41,7 @@ def parse_sku_mapping(df):
     return df
 
 
-def read_xlsx(filename):
+def read_sales_xlsx(filename):
     df = pd.read_excel(filename)
     df.drop(df.columns[0], axis=1, inplace=True)
 
@@ -54,11 +54,18 @@ def read_xlsx(filename):
     return df
 
 
-def read_csv(filename):
+def read_out_of_stock_csv(filename):
     df = pd.read_csv(filename)
     df = df[['Market Place', 'ASIN', 'Out of stock days']]
     df['Year'] = 2019
     df['Month'] = 'January'
     # FIXME
 
+    return df
+
+
+def read_orders_csv(filename):
+    df = pd.read_csv(filename, encoding="ISO-8859-1")
+    df = df[['Order Date', 'Market Place', 'ASIN', 'Price', 'Qty', 'Refunded', 'Sales Channel', 'Customer Pays']]
+    df = parse_orders(df)
     return df
