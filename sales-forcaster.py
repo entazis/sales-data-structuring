@@ -81,14 +81,13 @@ def sum_ppc_orders_by_product_group(df):
 
 def main():
     load_dotenv()
-
     authenticate_google_sheets()
 
     cin7_product = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Cin7-Product-Map')
+    asin_cin7 = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-ASIN-Cin7-Map')
     liquidation_limit = parse_liquidation_limits(
         get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Liquidation-Limits')
     )
-    asin_cin7 = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-ASIN-Cin7-Map')
 
     sales = read_sales_xlsx('sales.xlsx')
     sales = match_asin_cin7(sales, asin_cin7)
@@ -96,16 +95,14 @@ def main():
     sales_ppc = sum_ppc_orders_by_product_group(sales)
 
     out_of_stock = read_out_of_stock_csv('Input Stock Out Days/INVENTORY-20200205-194353 october 2018 stock outdays.csv')
+    out_of_stock = match_asin_cin7(out_of_stock, asin_cin7)
 
     orders = read_orders_csv('ORDERS-20200206-141613-Bear-Butt.csv')
     orders = match_asin_cin7(orders, asin_cin7)
-
     orders = orders[['Cin7', 'Year', 'Month', 'Day', 'Market Place', 'Sales Channel',
                      'Qty', 'Price', 'Price/Qty', 'Customer Pays']]
     orders_amazon = orders[orders['Sales Channel'] != 'Non-Amazon']
     orders_non_amazon = orders[orders['Sales Channel'] == 'Non-Amazon']
-
-    out_of_stock = match_asin_cin7(out_of_stock, asin_cin7)
 
     liquidation_orders = get_liquidation_orders(orders_amazon, liquidation_limit)
 
