@@ -79,6 +79,17 @@ def sum_ppc_orders_by_product_group(df):
     return ppc_sums
 
 
+def calculate_ppc_portions(df):
+    daily_brand_pg_sum = df.groupby([
+        'Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'
+    ])['Qty'].sum().reset_index().rename(columns={'Qty': 'Category Sum'})
+
+    pd.merge(df, daily_brand_pg_sum, how='left', on=['Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'])
+    df_with_portions = df['Portion'] = df['Qty'] / daily_brand_pg_sum['Category Sum']
+
+    return df_with_portions
+
+
 def main():
     load_dotenv()
     authenticate_google_sheets()
@@ -88,11 +99,6 @@ def main():
     liquidation_limit = parse_liquidation_limits(
         get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Liquidation-Limits')
     )
-
-    sales = read_sales_xlsx('sales.xlsx')
-    sales = match_asin_cin7(sales, asin_cin7)
-    sales = match_cin7_product(sales, cin7_product)
-    sales_ppc = sum_ppc_orders_by_product_group(sales)
 
     out_of_stock = read_out_of_stock_csv('Input Stock Out Days/INVENTORY-20200205-194353 october 2018 stock outdays.csv')
     out_of_stock = match_asin_cin7(out_of_stock, asin_cin7)
@@ -110,6 +116,22 @@ def main():
     calc_historical_liquidation = calculate_historical_table(liquidation_orders)
     calc_historical_non_amazon = calculate_historical_table(orders_non_amazon)
     calc_historical_amazon = calculate_historical_table(orders_amazon)
+
+    # calc_historical_ppc_organic = pd.merge(calc_historical_amazon, calc_historical_liquidation,
+    #                                        how='',
+    #                                        on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'],
+    #                                        suffixes=('_amazon', '_liquidation'))
+    # calc_historical_ppc_organic['Qty'] = calc_historical_ppc_organic['Qty_amazon'] \
+    #                                      - calc_historical_ppc_organic['Qty_liquidation']
+    calc_historical_ppc_organic = calculate_historical_table(orders_amazon)
+    calc_historical_ppc_organic = match_cin7_product(calc_historical_ppc_organic, cin7_product)
+    calc_historical_ppc_organic = calculate_ppc_portions(calc_historical_ppc_organic)
+
+    sales = read_sales_xlsx('sales.xlsx')
+    sales = match_asin_cin7(sales, asin_cin7)
+    sales = match_cin7_product(sales, cin7_product)
+    sales_ppc = sum_ppc_orders_by_product_group(sales)
+    sales_ppc_portion = calculate_ppc_portions(sales_ppc)
 
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_total_sales),
