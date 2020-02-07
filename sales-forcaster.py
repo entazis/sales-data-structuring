@@ -45,6 +45,13 @@ def match_asin_cin7(df, asin_cin7_map):
     return matched
 
 
+def match_cin7_product(df, cin7_product_map):
+    matched = pd.merge(df, cin7_product_map,
+                          how='left',
+                          on='Cin7')
+    return matched
+
+
 def calculate_historical_table(df):
     # TODO comment back after cin7
     qty_sum = df.groupby([
@@ -61,6 +68,15 @@ def calculate_historical_table(df):
 
     calc_historical = calc_historical[['Cin7', 'Market Place', 'Year', 'Month', 'Day', 'Qty', 'Price/Qty']]
     return calc_historical
+
+
+def sum_ppc_orders_by_product_group(df):
+    # TODO comment back after cin7
+    qty_sum = df.groupby([
+        'Year', 'Month', 'Day', 'Brand', 'Product Group'
+    ])['PPC Orders'].sum()
+    ppc_sums = qty_sum.reset_index()
+    return ppc_sums
 
 
 def main():
