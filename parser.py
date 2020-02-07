@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import re
+from calendar import month_name
 
 
 def parse_liquidation_limits(df):
@@ -50,12 +52,23 @@ def read_sales_xlsx(filename):
     return df
 
 
-def read_out_of_stock_csv(filename):
-    df = pd.read_csv(filename)
-    df = df[['Market Place', 'ASIN', 'Out of stock days']]
-    df['Year'] = 2018
-    df['Month'] = 'October'
-    # FIXME
+def read_out_of_stock_csv(filenames):
+    df = pd.DataFrame(columns=['Market Place', 'ASIN', 'Out of stock days', 'Year', 'Month'])
+    month_pattern = '|'.join(month_name[1:])
+    year_list = ["{0}".format(year) for year in range(2017, 2021)]
+    year_pattern = ' | '.join(year_list)
+
+    for filename in filenames:
+        stock_out = pd.read_csv(filename)
+        stock_out = stock_out[['Market Place', 'ASIN', 'Out of stock days']]
+
+        month = re.search(month_pattern, filename, re.IGNORECASE).group(0).capitalize()
+        year = re.search(year_pattern, filename, re.IGNORECASE).group(0)
+
+        stock_out['Year'] = int(year)
+        stock_out['Month'] = month
+
+        df = df.append(stock_out, ignore_index=True)
 
     return df
 

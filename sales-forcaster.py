@@ -1,5 +1,6 @@
 from __future__ import print_function
 import os.path
+import glob
 from dotenv import load_dotenv
 
 from parser import *
@@ -94,13 +95,16 @@ def main():
     load_dotenv()
     authenticate_google_sheets()
 
+    order_files = glob.glob('ORDERS*.csv')
+    stock_out_files = glob.glob('INVENTORY*.csv')
+
     cin7_product = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Cin7-Product-Map')
     asin_cin7 = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-ASIN-Cin7-Map')
     liquidation_limit = parse_liquidation_limits(
         get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Liquidation-Limits')
     )
 
-    out_of_stock = read_out_of_stock_csv('Input Stock Out Days/INVENTORY-20200205-194353 october 2018 stock outdays.csv')
+    out_of_stock = read_out_of_stock_csv(stock_out_files)
     out_of_stock = match_asin_cin7(out_of_stock, asin_cin7)
 
     orders = read_orders_csv('ORDERS-20200206-141613-Bear-Butt.csv')
@@ -123,6 +127,7 @@ def main():
     #                                        suffixes=('_amazon', '_liquidation'))
     # calc_historical_ppc_organic['Qty'] = calc_historical_ppc_organic['Qty_amazon'] \
     #                                      - calc_historical_ppc_organic['Qty_liquidation']
+    # TODO remove after cin7
     calc_historical_ppc_organic = calculate_historical_table(orders_amazon)
     calc_historical_ppc_organic = match_cin7_product(calc_historical_ppc_organic, cin7_product)
     calc_historical_ppc_organic = calculate_ppc_portions(calc_historical_ppc_organic)
