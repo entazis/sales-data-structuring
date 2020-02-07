@@ -6,13 +6,6 @@ from parser import *
 from gservice import *
 
 
-def update_product_group_using_sku_mapping(df, sku_mapping):
-    cols_to_use = df.columns.difference(sku_mapping.columns)
-    df_sku_mapped = match_asin_cin7(df[cols_to_use], sku_mapping)
-
-    return df_sku_mapped
-
-
 def get_liquidation_orders(orders_df, liquidataion_limit_df):
     orders_with_liquidation_limit = pd.merge(orders_df, liquidataion_limit_df,
                                  how='left',
@@ -68,29 +61,6 @@ def calculate_historical_table(df):
 
     calc_historical = calc_historical[['Cin7', 'Market Place', 'Year', 'Month', 'Day', 'Qty', 'Price/Qty']]
     return calc_historical
-
-
-def subtract_dataframes(df1, df2):
-    result = df1.merge(df2, on=['Brand', 'Market Place', 'Sales Channel', 'Product Group',
-                                'Cin7', 'Year', 'Month'],
-                       how='left', indicator=True)
-    result = result[result['_merge'] == 'left_only']
-    result.drop(['_merge'], axis=1, inplace=True)
-    result.dropna(axis=1, how='all', inplace=True)
-    drop_y(result)
-    rename_x(result)
-    return result
-
-
-def drop_y(df):
-    to_drop = [x for x in df if x.endswith('_y')]
-    df.drop(to_drop, axis=1, inplace=True)
-
-
-def rename_x(df):
-    for col in df:
-        if col.endswith('_x'):
-            df.rename(columns={col:col.rstrip('_x')}, inplace=True)
 
 
 def main():
