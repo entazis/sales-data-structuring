@@ -9,15 +9,17 @@ def parse_liquidation_limits(df):
 
 
 def parse_orders(df):
-    df[['Price', 'Customer Pays']] = df[['Price', 'Customer Pays']]\
+    df = df.loc[:, ['Order Date', 'Market Place', 'ASIN', 'Price', 'Qty', 'Refunded', 'Sales Channel', 'Customer Pays']]
+    df.loc[:, ['Price', 'Customer Pays']] = df.loc[:, ['Price', 'Customer Pays']]\
         .replace('[\$,]', '', regex=True)\
         .replace('', np.nan)
     df.dropna(subset=['Price', 'Customer Pays'], inplace=True)
-    df[['Qty', 'Price', 'Customer Pays']] = df[['Qty', 'Price', 'Customer Pays']].astype(float)
+    df.loc[:, ['Qty', 'Price', 'Customer Pays']] = df.loc[:, ['Qty', 'Price', 'Customer Pays']].astype(float)
 
-    df['Year'] = pd.DatetimeIndex(df['Order Date']).year.astype(int)
-    df['Month'] = pd.DatetimeIndex(df['Order Date']).strftime('%B')
-    df['Day'] = pd.DatetimeIndex(df['Order Date']).day.astype(int)
+    df.loc[:, 'Year'] = pd.DatetimeIndex(df['Order Date']).year.astype(int)
+    df.loc[:, 'Month'] = pd.DatetimeIndex(df['Order Date']).strftime('%B')
+    df.loc[:, 'Day'] = pd.DatetimeIndex(df['Order Date']).day.astype(int)
+    df.drop(['Order Date'], axis=1, inplace=True)
 
     df['Price/Qty'] = df['Price'] / df['Qty']
 
@@ -57,6 +59,5 @@ def read_out_of_stock_csv(filename):
 
 def read_orders_csv(filename):
     df = pd.read_csv(filename, encoding="ISO-8859-1")
-    df = df[['Order Date', 'Market Place', 'ASIN', 'Price', 'Qty', 'Refunded', 'Sales Channel', 'Customer Pays']]
     df = parse_orders(df)
     return df
