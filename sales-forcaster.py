@@ -1,6 +1,5 @@
 from __future__ import print_function
 import os.path
-import pandas as pd
 from dotenv import load_dotenv
 
 from parser import *
@@ -9,7 +8,7 @@ from gservice import *
 
 def update_product_group_using_sku_mapping(df, sku_mapping):
     cols_to_use = df.columns.difference(sku_mapping.columns)
-    df_sku_mapped = add_cin7_sku_map_for_asin(df[cols_to_use], sku_mapping)
+    df_sku_mapped = match_asin_cin7(df[cols_to_use], sku_mapping)
 
     return df_sku_mapped
 
@@ -38,14 +37,13 @@ def add_out_of_stock_days(orders_df, out_of_stock_df):
     return orders_with_out_of_stock_days
 
 
-def add_cin7_sku_map_for_asin(df, sku_map):
-    cols_to_use = df.columns.difference(sku_map.columns)
-    sku_mapped = pd.merge(df[cols_to_use], sku_map,
+def match_asin_cin7(df, asin_cin7_map):
+    matched = pd.merge(df, asin_cin7_map,
                           how='left',
                           left_on='ASIN',
                           right_on='Amazon-ASIN')
-    sku_mapped.dropna(subset=['Cin7'], inplace=True)
-    return sku_mapped
+    matched.dropna(subset=['Cin7'], inplace=True)
+    return matched
 
 
 def calculate_historical_table(df):
@@ -97,28 +95,20 @@ def rename_x(df):
 def main():
     load_dotenv()
 
-    sales_df = read_sales_xlsx('sales.xlsx')
-    outofstock_df = read_out_of_stock_csv('Input Stock Out Days/INVENTORY-20200205-200523-january-2020-stock-outdays.csv')
-    orders_df = read_orders_csv('ORDERS-20200206-141613-Bear-Butt.csv')
+    sales = read_sales_xlsx('sales.xlsx')
+    out_of_stock = read_out_of_stock_csv('Input Stock Out Days/INVENTORY-20200205-200523-january-2020-stock-outdays.csv')
+    orders = read_orders_csv('ORDERS-20200206-141613-Bear-Butt.csv')
 
     authenticate_google_sheets()
 
-    sku_mapping = parse_sku_mapping(
-        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Sku Dump')
-    )
+    cin7_product = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Cin7-Product-Map')
     liquidation_limit = parse_liquidation_limits(
-        get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-FT-Std. Price')
+        get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Liquidation-Limits')
     )
-    out_of_stock_days = add_cin7_sku_map_for_asin(
-        parse_out_of_stock_days(
-            get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Stockout Days')
-        ), sku_mapping
-    )
-    orders = update_product_group_using_sku_mapping(
-            parse_orders(
-                get_data_from_spreadsheet(os.getenv('SPREADSHEET_ID'), 'Input-Historical Orders')
-            ), sku_mapping
-    )
+    asin_cin7 = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-ASIN-Cin7-Map')
+
+    orders = match_asin_cin7(orders, asin_cin7)
+
     orders = orders[['Cin7', 'Year', 'Month', 'Day', 'Market Place', 'Sales Channel',
                      'Brand', 'Product Group', 'Qty', 'Price', 'Price/Qty', 'Customer Pays']]
     orders_non_amazon = orders[orders['Sales Channel'] == 'Non-Amazon']
