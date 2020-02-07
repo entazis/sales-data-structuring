@@ -3,13 +3,8 @@ import numpy as np
 
 
 def parse_liquidation_limits(df):
-    df = df.astype({'Standard Price': 'float'})
+    df = df.astype({'Liquidation Limit': 'float'})
     df = df.astype({'Year': 'int'})
-    df['Liquidation Limit'] = \
-        df['Liquidation Limit'].replace('[\%,]', '', regex=True).astype(float) / 100
-    df['Price Limit'] = \
-        df['Standard Price'] * (1-df['Liquidation Limit'])
-    df.drop(columns=['Product Group'], inplace=True)
     return df
 
 
@@ -34,10 +29,6 @@ def parse_out_of_stock_days(df):
     df['Month'] = pd.DatetimeIndex(df['End']).strftime('%B')
     df['Day'] = pd.DatetimeIndex(df['End']).day.astype(int)
 
-    return df
-
-
-def parse_sku_mapping(df):
     return df
 
 
