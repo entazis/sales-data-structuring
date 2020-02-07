@@ -50,8 +50,8 @@ def read_sales_xlsx(filename):
 def read_out_of_stock_csv(filename):
     df = pd.read_csv(filename)
     df = df[['Market Place', 'ASIN', 'Out of stock days']]
-    df['Year'] = 2019
-    df['Month'] = 'January'
+    df['Year'] = 2018
+    df['Month'] = 'October'
     # FIXME
 
     return df

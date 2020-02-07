@@ -96,7 +96,7 @@ def main():
     load_dotenv()
 
     sales = read_sales_xlsx('sales.xlsx')
-    out_of_stock = read_out_of_stock_csv('Input Stock Out Days/INVENTORY-20200205-200523-january-2020-stock-outdays.csv')
+    out_of_stock = read_out_of_stock_csv('Input Stock Out Days/INVENTORY-20200205-194353 october 2018 stock outdays.csv')
     orders = read_orders_csv('ORDERS-20200206-141613-Bear-Butt.csv')
 
     authenticate_google_sheets()
