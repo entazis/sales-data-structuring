@@ -64,7 +64,7 @@ def calculate_historical_table(df):
     calc_historical = pd.concat([qty_sum, unit_price_mean], axis=1).reset_index()
 
     # TODO remove after cin7
-    calc_historical['Cin7'] = np.nan
+    calc_historical['Cin7'] = 'NA'
 
     calc_historical = calc_historical[['Cin7', 'Market Place', 'Year', 'Month', 'Day', 'Qty', 'Price/Qty']]
     return calc_historical
