@@ -82,10 +82,6 @@ def sum_ppc_orders_by_product_group(df):
 def main():
     load_dotenv()
 
-    sales = read_sales_xlsx('sales.xlsx')
-    out_of_stock = read_out_of_stock_csv('Input Stock Out Days/INVENTORY-20200205-194353 october 2018 stock outdays.csv')
-    orders = read_orders_csv('ORDERS-20200206-141613-Bear-Butt.csv')
-
     authenticate_google_sheets()
 
     cin7_product = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Cin7-Product-Map')
@@ -94,6 +90,14 @@ def main():
     )
     asin_cin7 = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-ASIN-Cin7-Map')
 
+    sales = read_sales_xlsx('sales.xlsx')
+    sales = match_asin_cin7(sales, asin_cin7)
+    sales = match_cin7_product(sales, cin7_product)
+    sales_ppc = sum_ppc_orders_by_product_group(sales)
+
+    out_of_stock = read_out_of_stock_csv('Input Stock Out Days/INVENTORY-20200205-194353 october 2018 stock outdays.csv')
+
+    orders = read_orders_csv('ORDERS-20200206-141613-Bear-Butt.csv')
     orders = match_asin_cin7(orders, asin_cin7)
 
     orders = orders[['Cin7', 'Year', 'Month', 'Day', 'Market Place', 'Sales Channel',
@@ -132,6 +136,12 @@ def main():
         format_for_google_sheet_upload(calc_historical_non_amazon),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-Non-Amazon'
+    )
+
+    upload_data_to_sheet(
+        format_for_google_sheet_upload(sales_ppc),
+        os.getenv('CALCULATIONS_SPREADSHEET_ID'),
+        'Calc-SUM-PPC-Orders'
     )
 
 
