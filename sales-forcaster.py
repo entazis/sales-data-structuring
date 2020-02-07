@@ -53,19 +53,20 @@ def match_asin_cin7(df, asin_cin7_map):
 
 
 def calculate_historical_table(df):
+    # TODO comment back after cin7
     qty_sum = df.groupby([
-        'Brand', 'Market Place', 'Sales Channel', 'Product Group', 'Cin7', 'Year', 'Month'
+        'Year', 'Month', 'Day', 'Market Place'#, 'Cin7'
     ])['Qty'].sum()
-    customer_pays_mean = df.groupby([
-        'Brand', 'Market Place', 'Sales Channel', 'Product Group', 'Cin7', 'Year', 'Month'
+    unit_price_mean = df.groupby([
+        'Year', 'Month', 'Day', 'Market Place'#, 'Cin7'
     ])['Price/Qty'].mean()
 
-    calc_historical = pd.concat([qty_sum, customer_pays_mean], axis=1).reset_index()
-    calc_historical['Revenue'] = \
-        calc_historical['Qty'] * calc_historical['Price/Qty']
-    calc_historical.rename(columns={'Qty': 'Sales QTY',
-                                    'Price/Qty': 'Avg Sale Price'}, inplace=True)
+    calc_historical = pd.concat([qty_sum, unit_price_mean], axis=1).reset_index()
 
+    # TODO remove after cin7
+    calc_historical['Cin7'] = np.nan
+
+    calc_historical = calc_historical[['Cin7', 'Market Place', 'Year', 'Month', 'Day', 'Qty', 'Price/Qty']]
     return calc_historical
 
 
