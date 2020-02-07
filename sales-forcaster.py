@@ -17,12 +17,16 @@ def get_liquidation_orders(orders_df, liquidataion_limit_df):
     orders_with_liquidation_limit = pd.merge(orders_df, liquidataion_limit_df,
                                  how='left',
                                  on=['Cin7', 'Year', 'Month'])
-    orders_with_liquidation_limit.dropna(subset=['Price Limit'], inplace=True)
-    orders_liquidation = orders_with_liquidation_limit[
-        (orders_with_liquidation_limit['Price/Qty'] <= orders_with_liquidation_limit['Price Limit'])
-        & (orders_with_liquidation_limit['Sales Channel'] != 'Non-Amazon')
-        & (orders_with_liquidation_limit['Customer Pays'] != 0)
-    ]
+    # TODO check if needed
+    # orders_with_liquidation_limit.dropna(subset=['Price Limit'], inplace=True)
+
+    # TODO change back after cin7
+    orders_liquidation = orders_with_liquidation_limit
+    # orders_liquidation = orders_with_liquidation_limit[
+    #     orders_with_liquidation_limit['Price/Qty'] <= orders_with_liquidation_limit['Price Limit']
+    # ]
+
+    orders_liquidation.drop(['Liquidation Limit', 'Normal Price', 'Price Limit'], axis=1, inplace=True)
     return orders_liquidation
 
 
@@ -42,7 +46,9 @@ def match_asin_cin7(df, asin_cin7_map):
                           how='left',
                           left_on='ASIN',
                           right_on='Amazon-ASIN')
-    matched.dropna(subset=['Cin7'], inplace=True)
+    matched.drop(['Amazon-ASIN', 'Amazon-Sku'], axis=1, inplace=True)
+    # TODO comment back after cin7
+    # matched.dropna(subset=['Cin7'], inplace=True)
     return matched
 
 
@@ -110,26 +116,27 @@ def main():
     orders = match_asin_cin7(orders, asin_cin7)
 
     orders = orders[['Cin7', 'Year', 'Month', 'Day', 'Market Place', 'Sales Channel',
-                     'Brand', 'Product Group', 'Qty', 'Price', 'Price/Qty', 'Customer Pays']]
+                     'Qty', 'Price', 'Price/Qty', 'Customer Pays']]
+    orders_amazon = orders[orders['Sales Channel'] != 'Non-Amazon']
     orders_non_amazon = orders[orders['Sales Channel'] == 'Non-Amazon']
-    out_of_stock_days = out_of_stock_days[['Year', 'Month', 'Cin7', 'Market Place', 'Out of stock days']]
 
-    liquidation_orders = get_liquidation_orders(orders, liquidation_limit)
-    liquidation_orders['Sales Type'] = 'Liquidation'
+    out_of_stock = match_asin_cin7(out_of_stock, asin_cin7)
+
+    liquidation_orders = get_liquidation_orders(orders_amazon, liquidation_limit)
 
     calc_historical_liquidation = calculate_historical_table(liquidation_orders)
-    calc_historical_liquidation = add_out_of_stock_days(calc_historical_liquidation, out_of_stock_days)
+    # calc_historical_liquidation = add_out_of_stock_days(calc_historical_liquidation, out_of_stock)
 
     calc_historical_total_sales = calculate_historical_table(orders)
-    calc_historical_total_sales = add_out_of_stock_days(calc_historical_total_sales, out_of_stock_days)
+    # calc_historical_total_sales = add_out_of_stock_days(calc_historical_total_sales, out_of_stock)
 
     calc_historical_non_amazon = calculate_historical_table(orders_non_amazon)
-    calc_historical_non_amazon = add_out_of_stock_days(calc_historical_non_amazon, out_of_stock_days)
+    # calc_historical_non_amazon = add_out_of_stock_days(calc_historical_non_amazon, out_of_stock)
 
     amazon_ppc_orders = calculate_amazon_ppc_orders(orders, liquidation_orders, orders_non_amazon)
 
     calc_historical_amazon_ppc = calculate_historical_table(amazon_ppc_orders)
-    calc_historical_amazon_ppc = add_out_of_stock_days(calc_historical_amazon_ppc, out_of_stock_days)
+    # calc_historical_amazon_ppc = add_out_of_stock_days(calc_historical_amazon_ppc, out_of_stock)
 
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_liquidation),
