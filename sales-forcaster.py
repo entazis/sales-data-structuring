@@ -125,27 +125,27 @@ def main():
     calc_historical_amazon = calculate_historical_table(orders_amazon)
 
     upload_data_to_sheet(
-        format_for_google_sheet_upload(calc_historical_liquidation),
-        os.getenv('SPREADSHEET_ID'),
-        'python-liquidation'
+        format_for_google_sheet_upload(calc_historical_total_sales),
+        os.getenv('CALCULATIONS_SPREADSHEET_ID'),
+        'Calc-Historical-Total'
     )
 
     upload_data_to_sheet(
-        format_for_google_sheet_upload(calc_historical_total_sales),
-        os.getenv('SPREADSHEET_ID'),
-        'python-total-sales'
+        format_for_google_sheet_upload(calc_historical_amazon),
+        os.getenv('CALCULATIONS_SPREADSHEET_ID'),
+        'Calc-Historical-Amazon'
+    )
+
+    upload_data_to_sheet(
+        format_for_google_sheet_upload(calc_historical_liquidation),
+        os.getenv('CALCULATIONS_SPREADSHEET_ID'),
+        'Calc-Historical-Liquidation'
     )
 
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_non_amazon),
-        os.getenv('SPREADSHEET_ID'),
-        'python-non-amazon'
-    )
-
-    upload_data_to_sheet(
-        format_for_google_sheet_upload(calc_historical_amazon_ppc),
-        os.getenv('SPREADSHEET_ID'),
-        'python-amazon-sales-ppc'
+        os.getenv('CALCULATIONS_SPREADSHEET_ID'),
+        'Calc-Historical-Non-Amazon'
     )
 
 
