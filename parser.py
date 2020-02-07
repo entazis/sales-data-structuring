@@ -4,7 +4,10 @@ import numpy as np
 
 def parse_liquidation_limits(df):
     df = df.astype({'Liquidation Limit': 'float'})
+    df = df.astype({'Normal Price': 'float'})
     df = df.astype({'Year': 'int'})
+
+    df['Price Limit'] = df['Normal Price'] * (1 - df['Liquidation Limit'])
     return df
 
 
