@@ -16,7 +16,8 @@ def parse_liquidation_limits(df):
 def parse_orders(df):
     df = df.loc[:, ['Order Date', 'Market Place', 'ASIN', 'Price', 'Qty', 'Refunded', 'Sales Channel', 'Customer Pays']]
     df.loc[:, ['Price', 'Customer Pays']] = df.loc[:, ['Price', 'Customer Pays']]\
-        .replace('[\$,]', '', regex=True)\
+        .replace('[\$,]', '', regex=True) \
+        .replace('[\£,]', '', regex=True) \
         .replace('', np.nan)
     df.dropna(subset=['Price', 'Customer Pays'], inplace=True)
     df.loc[:, ['Qty', 'Price', 'Customer Pays']] = df.loc[:, ['Qty', 'Price', 'Customer Pays']].astype(float)
@@ -73,7 +74,12 @@ def read_out_of_stock_csv(filenames):
     return df
 
 
-def read_orders_csv(filename):
-    df = pd.read_csv(filename, encoding="ISO-8859-1")
-    df = parse_orders(df)
+def read_orders_csv(filenames):
+    df = pd.DataFrame(columns=['Market Place', 'Year', 'Month', 'Day', 'ASIN',
+                               'Price', 'Qty', 'Price/Qty', 'Refunded', 'Sales Channel', 'Customer Pays'])
+    for filename in filenames:
+        orders = pd.read_csv(filename, encoding="ISO-8859-1")
+        orders = parse_orders(orders)
+        df = df.append(orders, ignore_index=True)
+
     return df

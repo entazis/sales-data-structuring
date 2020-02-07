@@ -107,7 +107,7 @@ def main():
     out_of_stock = read_out_of_stock_csv(stock_out_files)
     out_of_stock = match_asin_cin7(out_of_stock, asin_cin7)
 
-    orders = read_orders_csv('ORDERS-20200206-141613-Bear-Butt.csv')
+    orders = read_orders_csv(order_files)
     orders = match_asin_cin7(orders, asin_cin7)
     orders = orders[['Cin7', 'Year', 'Month', 'Day', 'Market Place', 'Sales Channel',
                      'Qty', 'Price', 'Price/Qty', 'Customer Pays']]
@@ -136,7 +136,7 @@ def main():
     sales = match_asin_cin7(sales, asin_cin7)
     sales = match_cin7_product(sales, cin7_product)
     sales_ppc = sum_ppc_orders_by_product_group(sales)
-    sales_ppc_portion = calculate_ppc_portions(sales_ppc)
+    # sales_ppc_portion = calculate_ppc_portions(sales_ppc)
 
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_total_sales),
