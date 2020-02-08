@@ -96,6 +96,8 @@ def reallocate_ppc_qty(ppc_organic, sales_ppc, portion):
                            how='left',
                            on=['Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'])
     ppc_organic['PPC Orders'] = ppc_organic['PPC Orders'] * ppc_organic['Portion']
+    ppc_organic.fillna(0, inplace=True)
+
     ppc_organic['Organic Orders'] = ppc_organic['Qty'] - ppc_organic['PPC Orders']
     ppc_organic = ppc_organic.round()
 
