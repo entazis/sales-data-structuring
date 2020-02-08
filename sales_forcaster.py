@@ -80,6 +80,10 @@ def calculate_ppc_portions(df):
 
     df_with_brand_pg_sum = pd.merge(df, daily_brand_pg_sum, how='left', on=['Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'])
     df_with_brand_pg_sum['Portion'] = df_with_brand_pg_sum['Qty'] / df_with_brand_pg_sum['Category Sum']
+
+    # this is because the self-generated dummy data would break the code
+    df_with_brand_pg_sum = df_with_brand_pg_sum.replace([np.inf, -np.inf], np.nan)
+
     df_with_brand_pg_sum.fillna(0, inplace=True)
 
     return df_with_brand_pg_sum[['Cin7', 'Market Place', 'Year', 'Month', 'Day', 'Portion']]
@@ -97,7 +101,9 @@ def main():
     liquidation_limit = parse_liquidation_limits(
         get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Liquidation-Limits')
     )
-
+    promotions = parse_promotions(
+        get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Promotions')
+    )
     out_of_stock = read_out_of_stock_csv(stock_out_files)
     out_of_stock = match_asin_cin7(out_of_stock, asin_cin7)
 
@@ -120,9 +126,16 @@ def main():
                                            on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'],
                                            suffixes=('_amazon', '_liquidation'))
     calc_historical_ppc_organic.fillna(0, inplace=True)
+    calc_historical_ppc_organic = pd.merge(calc_historical_ppc_organic, promotions,
+                                           how='left',
+                                           on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'],
+                                           suffixes=('_amazon', '_promotion'))
+    calc_historical_ppc_organic.rename(columns={'Qty': 'Qty_promotion', 'Price/Qty': 'Price/Qty_promotion'}, inplace=True)
+    calc_historical_ppc_organic.fillna(0, inplace=True)
     calc_historical_ppc_organic['Qty'] = calc_historical_ppc_organic['Qty_amazon'] \
-                                         - calc_historical_ppc_organic['Qty_liquidation']
-    # TODO subtract promotions
+                                         - calc_historical_ppc_organic['Qty_liquidation'] \
+                                         - calc_historical_ppc_organic['Qty_promotion']
+
     calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
                                   ~calc_historical_ppc_organic.columns.str.endswith('_amazon')]
     calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
@@ -131,7 +144,7 @@ def main():
                                   ~calc_historical_ppc_organic.columns.str.endswith('_promotion')]
 
     calc_historical_ppc_organic = match_cin7_product(calc_historical_ppc_organic, cin7_product)
-    calc_historical_ppc_organic = calculate_ppc_portions(calc_historical_ppc_organic)
+    calc_orders_portion = calculate_ppc_portions(calc_historical_ppc_organic)
 
     sales = read_sales_xlsx('sales.xlsx')
     sales = match_asin_cin7(sales, asin_cin7)
@@ -167,6 +180,12 @@ def main():
         format_for_google_sheet_upload(sales_ppc),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-SUM-PPC-Orders'
+    )
+
+    upload_data_to_sheet(
+        format_for_google_sheet_upload(calc_orders_portion),
+        os.getenv('CALCULATIONS_SPREADSHEET_ID'),
+        'Calc-Orders-portion'
     )
 
 

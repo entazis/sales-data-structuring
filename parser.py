@@ -28,6 +28,7 @@ def parse_orders(df):
     df.drop(['Order Date'], axis=1, inplace=True)
 
     df['Price/Qty'] = df['Price'] / df['Qty']
+    df.fillna(0, inplace=True)
 
     return df
 
@@ -37,6 +38,14 @@ def parse_out_of_stock_days(df):
     df['Month'] = pd.DatetimeIndex(df['End']).strftime('%B')
     df['Day'] = pd.DatetimeIndex(df['End']).day.astype(int)
 
+    return df
+
+
+def parse_promotions(df):
+    df = df.astype({'Year': 'int'})
+    df = df.astype({'Day': 'int'})
+    df = df.astype({'Qty': 'int'})
+    df = df.astype({'Price/Qty': 'float'})
     return df
 
 
