@@ -202,6 +202,8 @@ def main():
     sum_org = summarize_by_sales_type(calc_historical_organic_reallocated, cin7_product, 'Organic')
     summarized_output_file = pd.concat([sum_liq, sum_nona, sum_prom, sum_ppc, sum_org], ignore_index=True)
 
+    summarized_output_file = add_out_of_stock_days(summarized_output_file, out_of_stock)
+
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_total_sales),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
