@@ -38,7 +38,7 @@ def match_asin_cin7(df, asin_cin7_map):
                           how='left',
                           left_on='ASIN',
                           right_on='Amazon-ASIN')
-    matched.drop(['Amazon-ASIN', 'Amazon-Sku'], axis=1, inplace=True)
+    matched.drop(['Amazon-ASIN'], axis=1, inplace=True)
     matched.dropna(subset=['Cin7'], inplace=True)
     return matched
 
@@ -92,7 +92,10 @@ def reallocate_ppc_qty(ppc_organic, sales_ppc, portion):
     ppc_organic = pd.merge(ppc_organic, portion,
                            how='left',
                            on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'])
-    ppc_organic['PPC Orders'] = sales_ppc['PPC Orders'] * ppc_organic['Portion']
+    ppc_organic = pd.merge(ppc_organic, sales_ppc,
+                           how='left',
+                           on=['Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'])
+    ppc_organic['PPC Orders'] = ppc_organic['PPC Orders'] * ppc_organic['Portion']
     ppc_organic['Organic Orders'] = ppc_organic['Qty'] - ppc_organic['PPC Orders']
     ppc_organic = ppc_organic.round()
 
@@ -134,6 +137,7 @@ def main():
     )
     shopify = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Shopify')
     wholesale = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Wholesale')
+
     out_of_stock = read_out_of_stock_csv(stock_out_files)
     out_of_stock = match_asin_cin7(out_of_stock, asin_cin7)
 
