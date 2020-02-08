@@ -132,6 +132,8 @@ def main():
     promotions = parse_promotions(
         get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Promotions')
     )
+    shopify = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Shopify')
+    wholesale = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Wholesale')
     out_of_stock = read_out_of_stock_csv(stock_out_files)
     out_of_stock = match_asin_cin7(out_of_stock, asin_cin7)
 
