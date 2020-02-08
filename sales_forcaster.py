@@ -12,16 +12,13 @@ def get_liquidation_orders(orders_df, liquidataion_limit_df):
     orders_with_liquidation_limit = pd.merge(orders_df, liquidataion_limit_df,
                                  how='left',
                                  on=['Cin7', 'Year', 'Month'])
-    # TODO check if needed
-    # orders_with_liquidation_limit.dropna(subset=['Price Limit'], inplace=True)
+    orders_with_liquidation_limit.dropna(subset=['Price Limit'], inplace=True)
 
-    # TODO change back after cin7
-    orders_liquidation = orders_with_liquidation_limit
-    # orders_liquidation = orders_with_liquidation_limit[
-    #     orders_with_liquidation_limit['Price/Qty'] <= orders_with_liquidation_limit['Price Limit']
-    # ]
+    orders_liquidation = orders_with_liquidation_limit[
+        orders_with_liquidation_limit['Price/Qty'] <= orders_with_liquidation_limit['Price Limit']
+    ]
 
-    orders_liquidation.drop(['Liquidation Limit', 'Normal Price', 'Price Limit'], axis=1, inplace=True)
+    orders_liquidation = orders_liquidation.drop(['Liquidation Limit', 'Normal Price', 'Price Limit'], axis=1)
     return orders_liquidation
 
 
@@ -42,8 +39,7 @@ def match_asin_cin7(df, asin_cin7_map):
                           left_on='ASIN',
                           right_on='Amazon-ASIN')
     matched.drop(['Amazon-ASIN', 'Amazon-Sku'], axis=1, inplace=True)
-    # TODO comment back after cin7
-    # matched.dropna(subset=['Cin7'], inplace=True)
+    matched.dropna(subset=['Cin7'], inplace=True)
     return matched
 
 
@@ -55,18 +51,14 @@ def match_cin7_product(df, cin7_product_map):
 
 
 def calculate_historical_table(df):
-    # TODO comment back after cin7
     qty_sum = df.groupby([
-        'Year', 'Month', 'Day', 'Market Place'#, 'Cin7'
+        'Year', 'Month', 'Day', 'Market Place', 'Cin7'
     ])['Qty'].sum()
     unit_price_mean = df.groupby([
-        'Year', 'Month', 'Day', 'Market Place'#, 'Cin7'
+        'Year', 'Month', 'Day', 'Market Place', 'Cin7'
     ])['Price/Qty'].mean()
 
     calc_historical = pd.concat([qty_sum, unit_price_mean], axis=1).reset_index()
-
-    # TODO remove after cin7
-    calc_historical['Cin7'] = 'NA'
 
     calc_historical = calc_historical[['Cin7', 'Market Place', 'Year', 'Month', 'Day', 'Qty', 'Price/Qty']]
     return calc_historical
@@ -86,10 +78,11 @@ def calculate_ppc_portions(df):
         'Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'
     ])['Qty'].sum().reset_index().rename(columns={'Qty': 'Category Sum'})
 
-    pd.merge(df, daily_brand_pg_sum, how='left', on=['Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'])
-    df_with_portions = df['Portion'] = df['Qty'] / daily_brand_pg_sum['Category Sum']
+    df_with_brand_pg_sum = pd.merge(df, daily_brand_pg_sum, how='left', on=['Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'])
+    df_with_brand_pg_sum['Portion'] = df_with_brand_pg_sum['Qty'] / df_with_brand_pg_sum['Category Sum']
+    df_with_brand_pg_sum.fillna(0, inplace=True)
 
-    return df_with_portions
+    return df_with_brand_pg_sum[['Cin7', 'Market Place', 'Year', 'Month', 'Day', 'Portion']]
 
 
 def main():
@@ -122,14 +115,21 @@ def main():
     calc_historical_non_amazon = calculate_historical_table(orders_non_amazon)
     calc_historical_amazon = calculate_historical_table(orders_amazon)
 
-    # calc_historical_ppc_organic = pd.merge(calc_historical_amazon, calc_historical_liquidation,
-    #                                        how='',
-    #                                        on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'],
-    #                                        suffixes=('_amazon', '_liquidation'))
-    # calc_historical_ppc_organic['Qty'] = calc_historical_ppc_organic['Qty_amazon'] \
-    #                                      - calc_historical_ppc_organic['Qty_liquidation']
-    # TODO remove after cin7
-    calc_historical_ppc_organic = calculate_historical_table(orders_amazon)
+    calc_historical_ppc_organic = pd.merge(calc_historical_amazon, calc_historical_liquidation,
+                                           how='left',
+                                           on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'],
+                                           suffixes=('_amazon', '_liquidation'))
+    calc_historical_ppc_organic.fillna(0, inplace=True)
+    calc_historical_ppc_organic['Qty'] = calc_historical_ppc_organic['Qty_amazon'] \
+                                         - calc_historical_ppc_organic['Qty_liquidation']
+    # TODO subtract promotions
+    calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
+                                  ~calc_historical_ppc_organic.columns.str.endswith('_amazon')]
+    calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
+                                  ~calc_historical_ppc_organic.columns.str.endswith('_liquidation')]
+    calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
+                                  ~calc_historical_ppc_organic.columns.str.endswith('_promotion')]
+
     calc_historical_ppc_organic = match_cin7_product(calc_historical_ppc_organic, cin7_product)
     calc_historical_ppc_organic = calculate_ppc_portions(calc_historical_ppc_organic)
 
