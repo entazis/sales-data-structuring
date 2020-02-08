@@ -65,7 +65,6 @@ def calculate_historical_table(df):
 
 
 def sum_ppc_orders_by_product_group(df):
-    # TODO comment back after cin7
     qty_sum = df.groupby([
         'Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'
     ])['PPC Orders'].sum()
@@ -89,6 +88,35 @@ def calculate_ppc_portions(df):
     return df_with_brand_pg_sum[['Cin7', 'Market Place', 'Year', 'Month', 'Day', 'Portion']]
 
 
+def reallocate_ppc_qty(ppc_organic, sales_ppc, portion):
+    ppc_organic = pd.merge(ppc_organic, portion,
+                           how='left',
+                           on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'])
+    ppc_organic['PPC Orders'] = sales_ppc['PPC Orders'] * ppc_organic['Portion']
+    ppc_organic['Organic Orders'] = ppc_organic['Qty'] - ppc_organic['PPC Orders']
+    ppc_organic = ppc_organic.round()
+
+    return ppc_organic[['Cin7', 'Market Place', 'Year', 'Month', 'Day',
+                        'Qty', 'Price/Qty', 'PPC Orders', 'Organic Orders']]
+
+
+def summarize_by_sales_type(df, cin7_product_map, type):
+    summarized = match_cin7_product(df, cin7_product_map)
+    qty_sum = summarized.groupby([
+        'Brand', 'Market Place', 'Product Group', 'Cin7', 'Year', 'Month'
+    ])['Qty'].sum()
+    price_avg = summarized.groupby([
+        'Brand', 'Market Place', 'Product Group', 'Cin7', 'Year', 'Month'
+    ])['Price/Qty'].mean()
+
+    summarized = pd.concat([qty_sum, price_avg], axis=1).reset_index()\
+        .rename(columns={'Qty': 'Sales QTY', 'Price/Qty': 'Avg Sale Price'})
+    summarized['Revenue'] = summarized['Sales QTY'] * summarized['Avg Sale Price']
+
+    summarized['Sales Type'] = type
+    return summarized
+
+
 def main():
     load_dotenv()
     authenticate_google_sheets()
@@ -110,7 +138,7 @@ def main():
     orders = read_orders_csv(order_files)
     orders = match_asin_cin7(orders, asin_cin7)
     orders = orders[['Cin7', 'Year', 'Month', 'Day', 'Market Place', 'Sales Channel',
-                     'Qty', 'Price', 'Price/Qty', 'Customer Pays']]
+                     'Qty', 'Price', 'Price/Qty']]
     orders_amazon = orders[orders['Sales Channel'] != 'Non-Amazon']
     orders_non_amazon = orders[orders['Sales Channel'] == 'Non-Amazon']
 
@@ -135,6 +163,7 @@ def main():
     calc_historical_ppc_organic['Qty'] = calc_historical_ppc_organic['Qty_amazon'] \
                                          - calc_historical_ppc_organic['Qty_liquidation'] \
                                          - calc_historical_ppc_organic['Qty_promotion']
+    calc_historical_ppc_organic['Price/Qty'] = calc_historical_ppc_organic['Price/Qty_amazon']
 
     calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
                                   ~calc_historical_ppc_organic.columns.str.endswith('_amazon')]
@@ -150,7 +179,22 @@ def main():
     sales = match_asin_cin7(sales, asin_cin7)
     sales = match_cin7_product(sales, cin7_product)
     sales_ppc = sum_ppc_orders_by_product_group(sales)
-    # sales_ppc_portion = calculate_ppc_portions(sales_ppc)
+
+    calc_historical_ppc_organic_reallocated = \
+        reallocate_ppc_qty(calc_historical_ppc_organic, sales_ppc, calc_orders_portion)
+    calc_historical_ppc_reallocated = calc_historical_ppc_organic_reallocated[[
+        'Cin7', 'Market Place', 'Year', 'Month', 'Day', 'Price/Qty', 'PPC Orders']]
+    calc_historical_ppc_reallocated = calc_historical_ppc_reallocated.rename(columns={'PPC Orders': 'Qty'})
+    calc_historical_organic_reallocated = calc_historical_ppc_organic_reallocated[[
+        'Cin7', 'Market Place', 'Year', 'Month', 'Day', 'Price/Qty', 'Organic Orders']]
+    calc_historical_organic_reallocated = calc_historical_organic_reallocated.rename(columns={'Organic Orders': 'Qty'})
+
+    sum_liq = summarize_by_sales_type(calc_historical_liquidation, cin7_product, 'Liquidations')
+    sum_nona = summarize_by_sales_type(calc_historical_non_amazon, cin7_product, 'Non-Amazon')
+    sum_prom = summarize_by_sales_type(promotions, cin7_product, 'Promotions')
+    sum_ppc = summarize_by_sales_type(calc_historical_ppc_reallocated, cin7_product, 'PPC')
+    sum_org = summarize_by_sales_type(calc_historical_organic_reallocated, cin7_product, 'Organic')
+    summarized_output_file = pd.concat([sum_liq, sum_nona, sum_prom, sum_ppc, sum_org], ignore_index=True)
 
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_total_sales),
@@ -186,6 +230,18 @@ def main():
         format_for_google_sheet_upload(calc_orders_portion),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Orders-portion'
+    )
+
+    upload_data_to_sheet(
+        format_for_google_sheet_upload(calc_historical_ppc_organic_reallocated),
+        os.getenv('CALCULATIONS_SPREADSHEET_ID'),
+        'Calc-Historical-PPC.Reallocated'
+    )
+
+    upload_data_to_sheet(
+        format_for_google_sheet_upload(summarized_output_file),
+        os.getenv('CALCULATIONS_SPREADSHEET_ID'),
+        'Output File'
     )
 
 
