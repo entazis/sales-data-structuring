@@ -78,8 +78,8 @@ def read_orders_csv(filenames):
     df = pd.DataFrame(columns=['Market Place', 'Year', 'Month', 'Day', 'ASIN',
                                'Price', 'Qty', 'Price/Qty', 'Refunded', 'Sales Channel', 'Customer Pays'])
     for filename in filenames:
-        orders = pd.read_csv(filename, encoding="ISO-8859-1")
+        orders = pd.read_csv(filename, encoding="ISO-8859-1", low_memory=False)
         orders = parse_orders(orders)
-        df = df.append(orders, ignore_index=True)
+        df = df.append(orders, ignore_index=True, sort=False)
 
     return df
