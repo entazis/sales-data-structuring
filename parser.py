@@ -80,6 +80,6 @@ def read_orders_csv(filenames):
     for filename in filenames:
         orders = pd.read_csv(filename, encoding="ISO-8859-1", low_memory=False)
         orders = parse_orders(orders)
-        df = df.append(orders, ignore_index=True, sort=False)
+        df = df.append(orders, ignore_index=True, sort=True)
 
     return df

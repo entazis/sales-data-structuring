@@ -13,7 +13,8 @@ def generate_liquidation_limits(cin7_df, start_date_string, end_date_string):
         df['Year'] = iterator_date.strftime('%Y')
         df['Month'] = iterator_date.strftime('%B')
         df['Liquidation Limit'] = 0.2
+        df['Normal Price'] = 29.97
         liquidation_limits = liquidation_limits.append(df, ignore_index=True)
         iterator_date += relativedelta(months=1)
 
-    return liquidation_limits
+    return liquidation_limits[['Cin7', 'Year', 'Month', 'Normal Price', 'Liquidation Limit']]
