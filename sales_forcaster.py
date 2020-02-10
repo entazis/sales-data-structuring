@@ -104,7 +104,7 @@ def reallocate_ppc_qty(ppc_organic, sales_ppc, portion):
                         'Qty', 'Price/Qty', 'PPC Orders', 'Organic Orders']]
 
 
-def summarize_by_sales_type(df, cin7_product_map, type):
+def summarize_by_sales_type(df, cin7_product_map, salesType):
     summarized = match_cin7_product(df, cin7_product_map)
     qty_sum = summarized.groupby([
         'Brand', 'Market Place', 'Product Group', 'Cin7', 'Year', 'Month'
@@ -117,7 +117,7 @@ def summarize_by_sales_type(df, cin7_product_map, type):
         .rename(columns={'Qty': 'Sales QTY', 'Price/Qty': 'Avg Sale Price'})
     summarized['Revenue'] = summarized['Sales QTY'] * summarized['Avg Sale Price']
 
-    summarized['Sales Type'] = type
+    summarized['Sales Type'] = salesType
     return summarized
 
 
