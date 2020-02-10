@@ -9,13 +9,13 @@ from gservice import *
 
 def get_liquidation_orders(orders_df, liquidataion_limit_df):
     orders_with_liquidation_limit = pd.merge(orders_df, liquidataion_limit_df,
-                                 how='left',
-                                 on=['Cin7', 'Year', 'Month'])
+                                             how='left',
+                                             on=['Cin7', 'Year', 'Month'])
     orders_with_liquidation_limit.dropna(subset=['Price Limit'], inplace=True)
 
     orders_liquidation = orders_with_liquidation_limit[
         orders_with_liquidation_limit['Price/Qty'] <= orders_with_liquidation_limit['Price Limit']
-    ]
+        ]
 
     orders_liquidation = orders_liquidation.drop(['Liquidation Limit', 'Normal Price', 'Price Limit'], axis=1)
     return orders_liquidation
@@ -34,9 +34,9 @@ def add_out_of_stock_days(orders_df, out_of_stock_df):
 
 def match_asin_cin7(df, asin_cin7_map):
     matched = pd.merge(df, asin_cin7_map,
-                          how='left',
-                          left_on='ASIN',
-                          right_on='Amazon-ASIN')
+                       how='left',
+                       left_on='ASIN',
+                       right_on='Amazon-ASIN')
     matched.drop(['Amazon-ASIN'], axis=1, inplace=True)
     matched.dropna(subset=['Cin7'], inplace=True)
     return matched
@@ -44,8 +44,8 @@ def match_asin_cin7(df, asin_cin7_map):
 
 def match_cin7_product(df, cin7_product_map):
     matched = pd.merge(df, cin7_product_map,
-                          how='left',
-                          on='Cin7')
+                       how='left',
+                       on='Cin7')
     return matched
 
 
@@ -76,7 +76,9 @@ def calculate_ppc_portions(df):
         'Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'
     ])['Qty'].sum().reset_index().rename(columns={'Qty': 'Category Sum'})
 
-    df_with_brand_pg_sum = pd.merge(df, daily_brand_pg_sum, how='left', on=['Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'])
+    df_with_brand_pg_sum = pd.merge(df, daily_brand_pg_sum,
+                                    how='left',
+                                    on=['Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'])
     df_with_brand_pg_sum['Portion'] = df_with_brand_pg_sum['Qty'] / df_with_brand_pg_sum['Category Sum']
 
     # this is because the self-generated dummy data would break the code
@@ -113,10 +115,10 @@ def summarize_by_sales_type(df, cin7_product_map, sales_type):
         'Brand', 'Market Place', 'Product Group', 'Cin7', 'Year', 'Month'
     ])['Price/Qty'].mean()
 
-    summarized = pd.concat([qty_sum, price_avg], axis=1).reset_index()\
+    summarized = pd.concat([qty_sum, price_avg], axis=1).reset_index() \
         .rename(columns={'Qty': 'Sales QTY', 'Price/Qty': 'Avg Sale Price'})
     summarized['Revenue'] = summarized['Sales QTY'] * summarized['Avg Sale Price']
-    summarized['Date'] = pd.to_datetime(summarized['Year'].astype(str) + ' ' + summarized['Month'], format='%Y %B')\
+    summarized['Date'] = pd.to_datetime(summarized['Year'].astype(str) + ' ' + summarized['Month'], format='%Y %B') \
         .dt.strftime('%m/%d/%Y')
     summarized['Sales Type'] = sales_type
     summarized['Sales Channel'] = 'Amazon' if sales_type != 'Shopify' and sales_type != 'Wholesale' else 'Non-Amazon'
@@ -181,7 +183,8 @@ def main():
                                            how='left',
                                            on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'],
                                            suffixes=('_amazon', '_promotion'))
-    calc_historical_ppc_organic.rename(columns={'Qty': 'Qty_promotion', 'Price/Qty': 'Price/Qty_promotion'}, inplace=True)
+    calc_historical_ppc_organic.rename(columns={'Qty': 'Qty_promotion', 'Price/Qty': 'Price/Qty_promotion'},
+                                       inplace=True)
     calc_historical_ppc_organic.fillna(0, inplace=True)
     calc_historical_ppc_organic['Qty'] = calc_historical_ppc_organic['Qty_amazon'] \
                                          - calc_historical_ppc_organic['Qty_liquidation'] \
