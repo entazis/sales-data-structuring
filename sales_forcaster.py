@@ -116,8 +116,10 @@ def summarize_by_sales_type(df, cin7_product_map, salesType):
     summarized = pd.concat([qty_sum, price_avg], axis=1).reset_index()\
         .rename(columns={'Qty': 'Sales QTY', 'Price/Qty': 'Avg Sale Price'})
     summarized['Revenue'] = summarized['Sales QTY'] * summarized['Avg Sale Price']
-
+    summarized['Date'] = pd.to_datetime(summarized['Year'].astype(str) + ' ' + summarized['Month'], format='%Y %B')\
+        .dt.strftime('%m/%d/%Y')
     summarized['Sales Type'] = salesType
+
     return summarized
 
 
