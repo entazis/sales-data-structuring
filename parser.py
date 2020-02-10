@@ -80,6 +80,11 @@ def read_out_of_stock_csv(filenames):
 
         df = df.append(stock_out, ignore_index=True)
 
+    df = df.sort_values(by=['ASIN', 'Out of stock days'])
+    df = df[df.duplicated(
+        subset=['ASIN', 'Year', 'Month'],
+        keep='first')]
+
     return df
 
 
