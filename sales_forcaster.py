@@ -146,6 +146,14 @@ def main():
         get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Wholesale')
     )
 
+    # with pd.ExcelWriter('input.xlsx') as writer:
+    #     cin7_product.to_excel(writer, sheet_name='Calc-Historical-Total')
+    #     asin_cin7.to_excel(writer, sheet_name='Input-ASIN-Cin7-Map')
+    #     liquidation_limit.to_excel(writer, sheet_name='Input-Liquidation-Limits')
+    #     promotions.to_excel(writer, sheet_name='Input-Historical-Promotions')
+    #     shopify.to_excel(writer, sheet_name='Input-Historical-Shopify')
+    #     wholesale.to_excel(writer, sheet_name='Input-Historical-Wholesale')
+
     out_of_stock = read_out_of_stock_csv(stock_out_files)
     out_of_stock = match_asin_cin7(out_of_stock, asin_cin7)
 
@@ -219,6 +227,16 @@ def main():
     summarized_output_file = summarized_output_file[['Brand', 'Country', 'Sales Channel', 'Product Group', 'Cin7',
                                                      'Sales Type', 'Date', 'Year', 'Month', 'Sales QTY',
                                                      'Out of stock days', 'Avg Sale Price', 'Revenue']]
+
+    # with pd.ExcelWriter('calculations.xlsx') as writer:
+    #     calc_historical_total_sales.to_excel(writer, sheet_name='Calc-Historical-Total')
+    #     calc_historical_amazon.to_excel(writer, sheet_name='Calc-Historical-Amazon')
+    #     calc_historical_liquidation.to_excel(writer, sheet_name='Calc-Historical-Liquidation')
+    #     calc_historical_non_amazon.to_excel(writer, sheet_name='Calc-Historical-Non-Amazon')
+    #     sales_ppc.to_excel(writer, sheet_name='Calc-SUM-PPC-Orders')
+    #     calc_orders_portion.to_excel(writer, sheet_name='Calc-Orders-portion')
+    #     calc_historical_ppc_organic_reallocated.to_excel(writer, sheet_name='Calc-Historical-PPC.Reallocated')
+    #     summarized_output_file.to_excel(writer, sheet_name='Output File')
 
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_total_sales),
