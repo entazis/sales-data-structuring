@@ -130,6 +130,7 @@ def main():
 
     order_files = glob.glob('ORDERS*.csv')
     stock_out_files = glob.glob('INVENTORY*.csv')
+    sales_files = glob.glob('SALESPERDAY*.xlsx')
 
     cin7_product = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Cin7-Product-Map')
     asin_cin7 = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-ASIN-Cin7-Map')
@@ -197,7 +198,7 @@ def main():
     calc_historical_ppc_organic = match_cin7_product(calc_historical_ppc_organic, cin7_product)
     calc_orders_portion = calculate_ppc_portions(calc_historical_ppc_organic)
 
-    sales = read_sales_xlsx('sales.xlsx')
+    sales = read_sales_xlsx(sales_files)
     sales = match_asin_cin7(sales, asin_cin7)
     sales = match_cin7_product(sales, cin7_product)
     sales_ppc = sum_ppc_orders_by_product_group(sales)

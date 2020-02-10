@@ -49,15 +49,18 @@ def parse_historical_table(df):
     return df
 
 
-def read_sales_xlsx(filename):
-    df = pd.read_excel(filename)
-    df.drop(df.columns[0], axis=1, inplace=True)
+def read_sales_xlsx(filenames):
+    df = pd.DataFrame(columns=['Year', 'Month', 'Day', 'Market Place', 'ASIN', 'Units', 'Refunded', 'PPC Orders'])
+    for filename in filenames:
+        sales = pd.read_excel(filename)
+        sales.drop(sales.columns[0], axis=1, inplace=True)
 
-    # df['Year'] = pd.DatetimeIndex(df['Date']).year.astype(int)
-    # df['Month'] = pd.DatetimeIndex(df['Date']).strftime('%B')
-    # df['Day'] = pd.DatetimeIndex(df['Date']).day.astype(int)
-    # df = df[['Year', 'Month', 'Day', 'Market Place', 'ASIN', 'Units', 'Refunded', 'PPC Orders']]
-    # df.to_excel('sales.xlsx', sheet_name='sales')
+        sales['Year'] = pd.DatetimeIndex(sales['Date']).year.astype(int)
+        sales['Month'] = pd.DatetimeIndex(sales['Date']).strftime('%B')
+        sales['Day'] = pd.DatetimeIndex(sales['Date']).day.astype(int)
+
+        df = df.append(sales[['Year', 'Month', 'Day', 'Market Place', 'ASIN', 'Units', 'Refunded', 'PPC Orders']],
+                       ignore_index=True, sort=True)
 
     return df
 
