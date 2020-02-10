@@ -41,7 +41,7 @@ def parse_out_of_stock_days(df):
     return df
 
 
-def parse_promotions(df):
+def parse_historical_table(df):
     df = df.astype({'Year': 'int'})
     df = df.astype({'Day': 'int'})
     df = df.astype({'Qty': 'int'})
