@@ -201,11 +201,15 @@ def main():
     calc_historical_organic_reallocated = calc_historical_organic_reallocated.rename(columns={'Organic Orders': 'Qty'})
 
     sum_liq = summarize_by_sales_type(calc_historical_liquidation, cin7_product, 'Liquidations')
-    sum_nona = summarize_by_sales_type(calc_historical_non_amazon, cin7_product, 'Non-Amazon')
     sum_prom = summarize_by_sales_type(promotions, cin7_product, 'Promotions')
     sum_ppc = summarize_by_sales_type(calc_historical_ppc_reallocated, cin7_product, 'PPC')
     sum_org = summarize_by_sales_type(calc_historical_organic_reallocated, cin7_product, 'Organic')
-    summarized_output_file = pd.concat([sum_liq, sum_nona, sum_prom, sum_ppc, sum_org], ignore_index=True)
+
+    sum_shopify = summarize_by_sales_type(shopify, cin7_product, 'Shopify')
+    sum_wholesale = summarize_by_sales_type(wholesale, cin7_product, 'Wholesale')
+
+    summarized_output_file = pd.concat([sum_liq, sum_prom, sum_ppc, sum_org,
+                                        sum_shopify, sum_wholesale], ignore_index=True)
 
     summarized_output_file = add_out_of_stock_days(summarized_output_file, out_of_stock)
 
