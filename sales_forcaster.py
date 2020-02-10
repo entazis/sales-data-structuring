@@ -119,6 +119,7 @@ def summarize_by_sales_type(df, cin7_product_map, salesType):
     summarized['Date'] = pd.to_datetime(summarized['Year'].astype(str) + ' ' + summarized['Month'], format='%Y %B')\
         .dt.strftime('%m/%d/%Y')
     summarized['Sales Type'] = salesType
+    summarized['Sales Channel'] = 'Amazon' if salesType != 'Shopify' and salesType != 'Wholesale' else 'Non-Amazon'
 
     return summarized
 
@@ -214,6 +215,10 @@ def main():
                                         sum_shopify, sum_wholesale], ignore_index=True)
 
     summarized_output_file = add_out_of_stock_days(summarized_output_file, out_of_stock)
+    summarized_output_file = summarized_output_file.rename(columns={'Market Place': 'Country'})
+    summarized_output_file = summarized_output_file[['Brand', 'Country', 'Sales Channel', 'Product Group', 'Cin7',
+                                                     'Sales Type', 'Date', 'Year', 'Month', 'Sales QTY',
+                                                     'Out of stock days', 'Avg Sale Price', 'Revenue']]
 
     upload_data_to_sheet(
         format_for_google_sheet_upload(calc_historical_total_sales),
