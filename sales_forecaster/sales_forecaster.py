@@ -2,9 +2,11 @@ from __future__ import print_function
 import os.path
 import glob
 from dotenv import load_dotenv
+import pandas as pd
+import numpy as np
 
-from parser import *
-from gservice import *
+import parser
+import gservice
 
 
 def get_liquidation_orders(orders_df, liquidataion_limit_df):
@@ -128,25 +130,26 @@ def summarize_by_sales_type(df, cin7_product_map, sales_type):
 
 def main():
     load_dotenv()
-    authenticate_google_sheets()
+
+    gservice.authenticate_google_sheets()
 
     order_files = glob.glob('ORDERS*.csv')
     stock_out_files = glob.glob('INVENTORY*.csv')
     sales_files = glob.glob('SALESPERDAY*.xlsx')
 
-    cin7_product = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Cin7-Product-Map')
-    asin_cin7 = get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-ASIN-Cin7-Map')
-    liquidation_limit = parse_liquidation_limits(
-        get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Liquidation-Limits')
+    cin7_product = gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Cin7-Product-Map')
+    asin_cin7 = gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-ASIN-Cin7-Map')
+    liquidation_limit = parser.parse_liquidation_limits(
+        gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Liquidation-Limits')
     )
-    promotions = parse_historical_table(
-        get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Promotions')
+    promotions = parser.parse_historical_table(
+        gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Promotions')
     )
-    shopify = parse_historical_table(
-        get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Shopify')
+    shopify = parser.parse_historical_table(
+        gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Shopify')
     )
-    wholesale = parse_historical_table(
-        get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Wholesale')
+    wholesale = parser.parse_historical_table(
+        gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Wholesale')
     )
 
     # with pd.ExcelWriter('input.xlsx') as writer:
@@ -157,10 +160,10 @@ def main():
     #     shopify.to_excel(writer, sheet_name='Input-Historical-Shopify')
     #     wholesale.to_excel(writer, sheet_name='Input-Historical-Wholesale')
 
-    out_of_stock = read_out_of_stock_csv(stock_out_files)
+    out_of_stock = parser.read_out_of_stock_csv(stock_out_files)
     out_of_stock = match_asin_cin7(out_of_stock, asin_cin7)
 
-    orders = read_orders_csv(order_files)
+    orders = parser.read_orders_csv(order_files)
     orders = match_asin_cin7(orders, asin_cin7)
     orders = orders[['Cin7', 'Year', 'Month', 'Day', 'Market Place', 'Sales Channel',
                      'Qty', 'Price', 'Price/Qty']]
@@ -201,7 +204,7 @@ def main():
     calc_historical_ppc_organic = match_cin7_product(calc_historical_ppc_organic, cin7_product)
     calc_orders_portion = calculate_ppc_portions(calc_historical_ppc_organic)
 
-    sales = read_sales_xlsx(sales_files)
+    sales = parser.read_sales_xlsx(sales_files)
     sales = match_asin_cin7(sales, asin_cin7)
     sales = match_cin7_product(sales, cin7_product)
     sales_ppc = sum_ppc_orders_by_product_group(sales)
@@ -242,50 +245,50 @@ def main():
     #     calc_historical_ppc_organic_reallocated.to_excel(writer, sheet_name='Calc-Historical-PPC.Reallocated')
     #     summarized_output_file.to_excel(writer, sheet_name='Output File')
 
-    upload_data_to_sheet(
-        format_for_google_sheet_upload(calc_historical_total_sales),
+    gservice.upload_data_to_sheet(
+        gservice.format_for_google_sheet_upload(calc_historical_total_sales),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-Total'
     )
 
-    upload_data_to_sheet(
-        format_for_google_sheet_upload(calc_historical_amazon),
+    gservice.upload_data_to_sheet(
+        gservice.format_for_google_sheet_upload(calc_historical_amazon),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-Amazon'
     )
 
-    upload_data_to_sheet(
-        format_for_google_sheet_upload(calc_historical_liquidation),
+    gservice.upload_data_to_sheet(
+        gservice.format_for_google_sheet_upload(calc_historical_liquidation),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-Liquidation'
     )
 
-    upload_data_to_sheet(
-        format_for_google_sheet_upload(calc_historical_non_amazon),
+    gservice.upload_data_to_sheet(
+        gservice.format_for_google_sheet_upload(calc_historical_non_amazon),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-Non-Amazon'
     )
 
-    upload_data_to_sheet(
-        format_for_google_sheet_upload(sales_ppc),
+    gservice.upload_data_to_sheet(
+        gservice.format_for_google_sheet_upload(sales_ppc),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-SUM-PPC-Orders'
     )
 
-    upload_data_to_sheet(
-        format_for_google_sheet_upload(calc_orders_portion),
+    gservice.upload_data_to_sheet(
+        gservice.format_for_google_sheet_upload(calc_orders_portion),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Orders-portion'
     )
 
-    upload_data_to_sheet(
-        format_for_google_sheet_upload(calc_historical_ppc_organic_reallocated),
+    gservice.upload_data_to_sheet(
+        gservice.format_for_google_sheet_upload(calc_historical_ppc_organic_reallocated),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-PPC.Reallocated'
     )
 
-    upload_data_to_sheet(
-        format_for_google_sheet_upload(summarized_output_file),
+    gservice.upload_data_to_sheet(
+        gservice.format_for_google_sheet_upload(summarized_output_file),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Output File'
     )

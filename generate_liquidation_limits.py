@@ -1,10 +1,8 @@
-import pandas as pd
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from dotenv import load_dotenv
 
-from parser import *
-from gservice import *
+from sales_forecaster.gservice import *
 
 
 def generate_liquidation_limits(cin7_df, start_date_string, end_date_string):
