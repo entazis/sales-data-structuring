@@ -55,6 +55,11 @@ def match_asin_cin7(df, asin_cin7_map):
                        left_on='ASIN',
                        right_on='Amazon-ASIN')
     matched.drop(['Amazon-ASIN'], axis=1, inplace=True)
+
+    nan_matched = matched[matched['Cin7'].isnull()]
+    if nan_matched.shape[0] > 0:
+        print('Did not found cin7 for the following ASINs:\n', nan_matched['ASIN'])
+
     matched.dropna(subset=['Cin7'], inplace=True)
     return matched
 
