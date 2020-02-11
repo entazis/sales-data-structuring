@@ -288,21 +288,21 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-Total'
     )
-    gservice.upload_data_to_sheet(
-        gservice.format_for_google_sheet_upload(calc_historical_amazon_formatted),
-        os.getenv('CALCULATIONS_SPREADSHEET_ID'),
-        'Calc-Historical-Amazon'
-    )
+    # gservice.upload_data_to_sheet(
+    #     gservice.format_for_google_sheet_upload(calc_historical_amazon_formatted),
+    #     os.getenv('CALCULATIONS_SPREADSHEET_ID'),
+    #     'Calc-Historical-Amazon'
+    # )
     gservice.upload_data_to_sheet(
         gservice.format_for_google_sheet_upload(calc_historical_liquidation_formatted),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-Liquidation'
     )
-    gservice.upload_data_to_sheet(
-        gservice.format_for_google_sheet_upload(calc_historical_non_amazon_formatted),
-        os.getenv('CALCULATIONS_SPREADSHEET_ID'),
-        'Calc-Historical-Non-Amazon'
-    )
+    # gservice.upload_data_to_sheet(
+    #     gservice.format_for_google_sheet_upload(calc_historical_non_amazon_formatted),
+    #     os.getenv('CALCULATIONS_SPREADSHEET_ID'),
+    #     'Calc-Historical-Non-Amazon'
+    # )
     gservice.upload_data_to_sheet(
         gservice.format_for_google_sheet_upload(sales_ppc),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
