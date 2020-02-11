@@ -128,14 +128,17 @@ def summarize_by_sales_type(df, cin7_product_map, sales_type):
     return summarized
 
 
-def main():
+def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
     load_dotenv()
 
     gservice.authenticate_google_sheets()
 
-    order_files = glob.glob('ORDERS*.csv')
-    stock_out_files = glob.glob('INVENTORY*.csv')
-    sales_files = glob.glob('SALESPERDAY*.xlsx')
+    order_files = glob.glob(orders_regex)
+    stock_out_files = glob.glob(out_of_stock_regex)
+    sales_files = glob.glob(sales_regex)
+
+    # TODO implement for handling shopify
+    shopify_files = glob.glob((shopify_regex))
 
     cin7_product = gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Cin7-Product-Map')
     asin_cin7 = gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-ASIN-Cin7-Map')
@@ -295,4 +298,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main('ORDERS*.csv', 'INVENTORY*.csv', 'SALESPERDAY*.xlsx', '*Shopify*.csv')

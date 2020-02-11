@@ -29,7 +29,7 @@ Get the following raw data files following this naming convention, put them next
 ```
 INVENTORY-...-... MM YYYY stock outdays.csv
 ORDERS-...-... .csv
-SALESPERDAY...-...-... .csv
+SALESPERDAY...-...-... .xlsx
 
 ```
 
