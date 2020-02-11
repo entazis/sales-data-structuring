@@ -34,6 +34,21 @@ def add_out_of_stock_days(orders_df, out_of_stock_df):
     return orders_with_out_of_stock_days
 
 
+def format_calculations_for_output(df, cin7_product, sales_channel, sales_type):
+    output = match_cin7_product(df, cin7_product)
+    output['Revenue'] = output['Qty'] * output['Price/Qty']
+    output['Date'] = pd.to_datetime(output['Year'].astype(str) + ' ' + output['Month'] + ' ' + output['Day'].astype(str),
+                                    format='%Y %B %d').dt.strftime('%m/%d/%Y')
+    output['Sales Type'] = sales_type
+    output['Sales Channel'] = sales_channel
+    output = output.rename(columns={'Market Place': 'Country'})
+
+    output = output[['Brand', 'Country', 'Sales Channel', 'Product Group', 'Cin7',
+                     'Sales Type', 'Date', 'Year', 'Month', 'Day', 'Qty',
+                     'Out of stock days', 'Price/Qty', 'Revenue']]
+    return output
+
+
 def match_asin_cin7(df, asin_cin7_map):
     matched = pd.merge(df, asin_cin7_map,
                        how='left',
@@ -238,58 +253,76 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
                                                      'Sales Type', 'Date', 'Year', 'Month', 'Sales QTY',
                                                      'Out of stock days', 'Avg Sale Price', 'Revenue']]
 
+    calc_historical_total_sales_formatted = format_calculations_for_output(
+        add_out_of_stock_days(calc_historical_total_sales, out_of_stock), cin7_product, '', ''
+    )
+    calc_historical_amazon_formatted = format_calculations_for_output(
+        add_out_of_stock_days(calc_historical_amazon, out_of_stock), cin7_product, 'Amazon', ''
+    )
+    calc_historical_liquidation_formatted = format_calculations_for_output(
+        add_out_of_stock_days(calc_historical_liquidation, out_of_stock), cin7_product, 'Amazon', 'Liquidation'
+    )
+    calc_historical_non_amazon_formatted = format_calculations_for_output(
+        add_out_of_stock_days(calc_historical_non_amazon, out_of_stock), cin7_product, 'Non-Amazon', ''
+    )
+    calc_historical_ppc_reallocated_formatted = format_calculations_for_output(
+        add_out_of_stock_days(calc_historical_ppc_reallocated, out_of_stock), cin7_product, 'Amazon', 'PPC'
+    )
+    calc_historical_organic_reallocated_formatted = format_calculations_for_output(
+        add_out_of_stock_days(calc_historical_organic_reallocated, out_of_stock), cin7_product, 'Amazon', 'Organic'
+    )
+
     # with pd.ExcelWriter('calculations.xlsx') as writer:
-    #     calc_historical_total_sales.to_excel(writer, sheet_name='Calc-Historical-Total')
-    #     calc_historical_amazon.to_excel(writer, sheet_name='Calc-Historical-Amazon')
-    #     calc_historical_liquidation.to_excel(writer, sheet_name='Calc-Historical-Liquidation')
-    #     calc_historical_non_amazon.to_excel(writer, sheet_name='Calc-Historical-Non-Amazon')
+    #     calc_historical_total_sales_formatted.to_excel(writer, sheet_name='Calc-Historical-Total')
+    #     calc_historical_amazon_formatted.to_excel(writer, sheet_name='Calc-Historical-Amazon')
+    #     calc_historical_liquidation_formatted.to_excel(writer, sheet_name='Calc-Historical-Liquidation')
+    #     calc_historical_non_amazon_formatted.to_excel(writer, sheet_name='Calc-Historical-Non-Amazon')
     #     sales_ppc.to_excel(writer, sheet_name='Calc-SUM-PPC-Orders')
     #     calc_orders_portion.to_excel(writer, sheet_name='Calc-Orders-portion')
-    #     calc_historical_ppc_organic_reallocated.to_excel(writer, sheet_name='Calc-Historical-PPC.Reallocated')
+    #     calc_historical_ppc_reallocated_formatted.to_excel(writer, sheet_name='Calc-Historical-PPC.Reallocated')
+    #     calc_historical_organic_reallocated_formatted.to_excel(writer, sheet_name='Calc-Historical-Org.Reallocated')
     #     summarized_output_file.to_excel(writer, sheet_name='Output File')
 
     gservice.upload_data_to_sheet(
-        gservice.format_for_google_sheet_upload(calc_historical_total_sales),
+        gservice.format_for_google_sheet_upload(calc_historical_total_sales_formatted),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-Total'
     )
-
     gservice.upload_data_to_sheet(
-        gservice.format_for_google_sheet_upload(calc_historical_amazon),
+        gservice.format_for_google_sheet_upload(calc_historical_amazon_formatted),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-Amazon'
     )
-
     gservice.upload_data_to_sheet(
-        gservice.format_for_google_sheet_upload(calc_historical_liquidation),
+        gservice.format_for_google_sheet_upload(calc_historical_liquidation_formatted),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-Liquidation'
     )
-
     gservice.upload_data_to_sheet(
-        gservice.format_for_google_sheet_upload(calc_historical_non_amazon),
+        gservice.format_for_google_sheet_upload(calc_historical_non_amazon_formatted),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-Non-Amazon'
     )
-
     gservice.upload_data_to_sheet(
         gservice.format_for_google_sheet_upload(sales_ppc),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-SUM-PPC-Orders'
     )
-
     gservice.upload_data_to_sheet(
         gservice.format_for_google_sheet_upload(calc_orders_portion),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Orders-portion'
     )
-
     gservice.upload_data_to_sheet(
-        gservice.format_for_google_sheet_upload(calc_historical_ppc_organic_reallocated),
+        gservice.format_for_google_sheet_upload(calc_historical_ppc_reallocated_formatted),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-PPC.Reallocated'
     )
-
+    # gservice.upload_data_to_sheet(
+    #     gservice.format_for_google_sheet_upload(calc_historical_organic_reallocated_formatted),
+    #     os.getenv('CALCULATIONS_SPREADSHEET_ID'),
+    #     'Calc-Historical-Org.Reallocated'
+    # )
     gservice.upload_data_to_sheet(
         gservice.format_for_google_sheet_upload(summarized_output_file),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
