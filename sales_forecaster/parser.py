@@ -64,7 +64,7 @@ def parse_historical_table(df):
 
 
 def read_sales_xlsx(filenames):
-    df = pd.DataFrame(columns=['Year', 'Month', 'Day', 'Market Place', 'ASIN', 'Units', 'Refunded', 'PPC Orders'])
+    df = pd.DataFrame(columns=['Year', 'Month', 'Day', 'Market Place', 'ASIN', 'PPC Orders'])
     for filename in filenames:
         sales = pd.read_excel(filename)
         sales.drop(sales.columns[0], axis=1, inplace=True)
@@ -76,8 +76,13 @@ def read_sales_xlsx(filenames):
         except KeyError:
             print("Could not parse the date column. It may be already be parsed.")
 
-        df = df.append(sales[['Year', 'Month', 'Day', 'Market Place', 'ASIN', 'Units', 'Refunded', 'PPC Orders']],
+        df = df.append(sales[['Year', 'Month', 'Day', 'Market Place', 'ASIN', 'PPC Orders']],
                        ignore_index=True, sort=True)
+
+    df = df.sort_values(by=['Year', 'Month', 'Day', 'Market Place', 'ASIN', 'PPC Orders']).reset_index(drop=True)
+    df = df.drop_duplicates(
+        subset=['Market Place', 'ASIN', 'Year', 'Month', 'Day', 'PPC Orders'],
+        keep='first')
 
     return df
 
@@ -100,7 +105,7 @@ def read_out_of_stock_csv(filenames):
 
         df = df.append(stock_out, ignore_index=True)
 
-    df = df.sort_values(by=['ASIN', 'Out of stock days'])
+    df = df.sort_values(by=['ASIN', 'Out of stock days']).reset_index(drop=True)
     df = df.drop_duplicates(
         subset=['Market Place', 'ASIN', 'Year', 'Month'],
         keep='first')
