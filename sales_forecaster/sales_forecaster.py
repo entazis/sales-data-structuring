@@ -181,23 +181,41 @@ def reallocate_ppc_qty(ppc_organic, sales_ppc, portion):
 
 
 def summarize_by_sales_type(df, cin7_product_map, sales_type):
-    summarized = match_cin7_product(df, cin7_product_map)
-    qty_sum = summarized.groupby([
-        'Brand', 'Market Place', 'Product Group', 'Cin7', 'Year', 'Month'
-    ])['Qty'].sum()
-    price_avg = summarized.groupby([
-        'Brand', 'Market Place', 'Product Group', 'Cin7', 'Year', 'Month'
-    ])['Price/Qty'].mean()
+    try:
+        summarized = match_cin7_product(df, cin7_product_map)
+        qty_sum = summarized.groupby([
+            'Brand', 'Market Place', 'Product Group', 'Cin7', 'Year', 'Month'
+        ])['Qty'].sum()
+        price_avg = summarized.groupby([
+            'Brand', 'Market Place', 'Product Group', 'Cin7', 'Year', 'Month'
+        ])['Price/Qty'].mean()
 
-    summarized = pd.concat([qty_sum, price_avg], axis=1).reset_index() \
-        .rename(columns={'Qty': 'Sales QTY', 'Price/Qty': 'Avg Sale Price'})
-    summarized['Revenue'] = summarized['Sales QTY'] * summarized['Avg Sale Price']
-    summarized['Date'] = pd.to_datetime(summarized['Year'].astype(str) + ' ' + summarized['Month'], format='%Y %B') \
-        .dt.strftime('%m/%d/%Y')
-    summarized['Sales Type'] = sales_type
-    summarized['Sales Channel'] = 'Amazon' if sales_type != 'Shopify' and sales_type != 'Wholesale' else 'Non-Amazon'
+        summarized = pd.concat([qty_sum, price_avg], axis=1).reset_index() \
+            .rename(columns={'Qty': 'Sales QTY', 'Price/Qty': 'Avg Sale Price'})
+        summarized['Revenue'] = summarized['Sales QTY'] * summarized['Avg Sale Price']
+        summarized['Date'] = pd.to_datetime(summarized['Year'].astype(str) + ' ' + summarized['Month'],
+                                            format='%Y %B').dt.strftime('%m/%d/%Y')
+        summarized['Sales Type'] = sales_type
+        summarized['Sales Channel'] = 'Amazon' if sales_type != 'Shopify' and sales_type != 'Wholesale' else 'Non-Amazon'
+        return summarized
+    except KeyError:
+        print('Cannot summarize dataframe: ', df)
+        return df
 
-    return summarized
+
+def summarize_reallocated_sales_type(df, cin7_product_map, sales_type):
+    try:
+        summarized = match_cin7_product(df, cin7_product_map).rename(columns={'Qty': 'Sales QTY'})
+
+        summarized['Revenue'] = summarized['Sales QTY'] * summarized['Avg Sale Price']
+        summarized['Date'] = pd.to_datetime(summarized['Year'].astype(str) + ' ' + summarized['Month'],
+                                            format='%Y %B').dt.strftime('%m/%d/%Y')
+        summarized['Sales Type'] = sales_type
+        summarized['Sales Channel'] = 'Amazon'
+        return summarized
+    except KeyError:
+        print('Cannot summarize dataframe: ', df)
+        return df
 
 
 def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
@@ -304,8 +322,8 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
 
     sum_liq = summarize_by_sales_type(calc_historical_liquidation, cin7_product, 'Liquidations')
     sum_prom = summarize_by_sales_type(promotions, cin7_product, 'Promotions')
-    sum_ppc = summarize_by_sales_type(calc_historical_ppc_reallocated, cin7_product, 'PPC')
-    sum_org = summarize_by_sales_type(calc_historical_organic, cin7_product, 'Organic')
+    sum_ppc = summarize_reallocated_sales_type(calc_historical_ppc_reallocated, cin7_product, 'PPC')
+    sum_org = summarize_reallocated_sales_type(calc_historical_organic, cin7_product, 'Organic')
 
     sum_shopify = summarize_by_sales_type(shopify, cin7_product, 'Shopify')
     sum_wholesale = summarize_by_sales_type(wholesale, cin7_product, 'Wholesale')
@@ -319,9 +337,6 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
                                                      'Sales Type', 'Date', 'Year', 'Month', 'Sales QTY',
                                                      'Out of stock days', 'Avg Sale Price', 'Revenue']]
 
-    calc_historical_total_sales_formatted = format_calculations_for_output(
-        calc_historical_total_sales, cin7_product, out_of_stock, '', ''
-    )
     calc_historical_amazon_formatted = format_calculations_for_output(
         calc_historical_amazon, cin7_product, out_of_stock, 'Amazon', ''
     )
@@ -337,6 +352,8 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
     calc_historical_organic_reallocated_formatted = format_calculations_for_output(
         calc_historical_liquidation, cin7_product, out_of_stock, 'Amazon', 'Organic'
     )
+    calc_historical_total_sales_formatted = pd.concat(
+        [calc_historical_amazon_formatted, calc_historical_non_amazon_formatted], ignore_index=True)
 
     # with pd.ExcelWriter('calculations.xlsx') as writer:
     #     calc_historical_total_sales_formatted.to_excel(writer, sheet_name='Calc-Historical-Total')
@@ -387,7 +404,7 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
     gservice.upload_data_to_sheet(
         gservice.format_for_google_sheet_upload(calc_historical_organic_reallocated_formatted),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
-        'Calc-Historical-Org.Reallocated'
+        'Calc-Historical-Organic'
     )
     gservice.upload_data_to_sheet(
         gservice.format_for_google_sheet_upload(summarized_output_file),
