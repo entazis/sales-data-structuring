@@ -69,9 +69,12 @@ def read_sales_xlsx(filenames):
         sales = pd.read_excel(filename)
         sales.drop(sales.columns[0], axis=1, inplace=True)
 
-        sales['Year'] = pd.DatetimeIndex(sales['Date']).year.astype(int)
-        sales['Month'] = pd.DatetimeIndex(sales['Date']).strftime('%B')
-        sales['Day'] = pd.DatetimeIndex(sales['Date']).day.astype(int)
+        try:
+            sales['Year'] = pd.DatetimeIndex(sales['Date']).year.astype(int)
+            sales['Month'] = pd.DatetimeIndex(sales['Date']).strftime('%B')
+            sales['Day'] = pd.DatetimeIndex(sales['Date']).day.astype(int)
+        except KeyError:
+            print("Could not parse the date column. It may be already be parsed.")
 
         df = df.append(sales[['Year', 'Month', 'Day', 'Market Place', 'ASIN', 'Units', 'Refunded', 'PPC Orders']],
                        ignore_index=True, sort=True)
