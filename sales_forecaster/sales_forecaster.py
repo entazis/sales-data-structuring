@@ -87,6 +87,11 @@ def match_cin7_product(df, cin7_product_map):
         matched = pd.merge(df, cin7_product_map,
                            how='left',
                            on='Cin7')
+
+        nan_matched = matched[matched['Brand'].isnull() | matched['Product Group'].isnull()]
+        if nan_matched.shape[0] > 0:
+            print('Did not found Brand or Product Group for the following Cin7s:\n', nan_matched['Cin7'])
+
         return matched
     except KeyError:
         print('Could not match the product details to the orders.')
