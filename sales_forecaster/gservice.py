@@ -36,10 +36,10 @@ def get_data_from_spreadsheet(spreadsheet_id, sheet_name):
     headers = values.pop(0)
 
     if not values:
-        print('No data found.')
+        print('No data found in ', sheet_name)
         return pd.DataFrame()
     else:
-        print('Data successfully got from spreadsheet!')
+        print('Data successfully got from sheet: ', sheet_name)
         return pd.DataFrame(values, columns=headers)
 
 
