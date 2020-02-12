@@ -115,7 +115,7 @@ def read_out_of_stock_csv(filenames):
 
 def read_orders_csv(filenames):
     df = pd.DataFrame(columns=['Market Place', 'Year', 'Month', 'Day', 'ASIN',
-                               'Price', 'Qty', 'Price/Qty', 'Refunded', 'Sales Channel', 'Customer Pays'])
+                               'Price', 'Qty', 'Price/Qty', 'Sales Channel', 'Customer Pays'])
     for filename in filenames:
         orders = pd.read_csv(filename, encoding="ISO-8859-1", low_memory=False)
         orders = parse_orders(orders)
