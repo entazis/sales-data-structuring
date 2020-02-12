@@ -37,10 +37,11 @@ def add_out_of_stock_days(orders_df, out_of_stock_df):
     try:
         orders_with_out_of_stock_days = pd.merge(
             orders_df,
-            out_of_stock_df[['Cin7', 'Year', 'Month', 'Market Place', 'Out of stock days']],
+            out_of_stock_df,
             how='left',
             on=['Cin7', 'Year', 'Month', 'Market Place'])
         orders_with_out_of_stock_days.fillna(0, inplace=True)
+
         return orders_with_out_of_stock_days
     except KeyError:
         print("Could not add stock out days.")
@@ -64,19 +65,27 @@ def format_calculations_for_output(df, cin7_product, out_of_stock, sales_channel
     return output
 
 
-def match_asin_cin7(df, asin_cin7_map):
+def match_asin_cin7(df, asin_cin7_map, duplication_method):
     try:
         matched = pd.merge(df, asin_cin7_map,
                            how='left',
                            left_on='ASIN',
                            right_on='Amazon-ASIN')
-        matched.drop(['Amazon-ASIN'], axis=1, inplace=True)
 
         nan_matched = matched[matched['Cin7'].isnull()]
         if nan_matched.shape[0] > 0:
-            print('Did not found cin7 for the following ASINs:\n', nan_matched['ASIN'])
-
+            print('Did not found cin7 for the following ASINs:\n', nan_matched['ASIN'].unique())
         matched.dropna(subset=['Cin7'], inplace=True)
+
+        matched.drop(['Amazon-ASIN', 'ASIN'], axis=1, inplace=True)
+
+        if duplication_method == 'out-of-stock':
+            matched = matched.drop_duplicates(subset=['Market Place', 'Cin7', 'Year', 'Month'])
+        elif duplication_method == 'sales':
+            matched = matched.drop_duplicates()
+        elif duplication_method == 'orders':
+            pass
+
         return matched
     except KeyError:
         print('Could not match the ASIN to the orders.')
@@ -88,6 +97,10 @@ def match_cin7_product(df, cin7_product_map):
         matched = pd.merge(df, cin7_product_map,
                            how='left',
                            on='Cin7')
+        columns_to_unique = matched.columns.to_list()
+        columns_to_unique.remove('Brand')
+        columns_to_unique.remove('Product Group')
+        matched = matched.drop_duplicates(subset=columns_to_unique)
 
         nan_matched = matched[matched['Brand'].isnull() | matched['Product Group'].isnull()]
         if nan_matched.shape[0] > 0:
@@ -255,15 +268,15 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
     #     wholesale.to_excel(writer, sheet_name='Input-Historical-Wholesale')
 
     out_of_stock = parser.read_out_of_stock_csv(stock_out_files)
-    out_of_stock = match_asin_cin7(out_of_stock, asin_cin7)
+    out_of_stock = match_asin_cin7(out_of_stock, asin_cin7, 'out-of-stock')
 
     sales = parser.read_sales_xlsx(sales_files)
-    sales = match_asin_cin7(sales, asin_cin7)
+    sales = match_asin_cin7(sales, asin_cin7, 'sales')
     sales = match_cin7_product(sales, cin7_product)
     sales_ppc = sum_ppc_orders_by_product_group(sales)
 
     orders = parser.read_orders_csv(order_files)
-    orders = match_asin_cin7(orders, asin_cin7)
+    orders = match_asin_cin7(orders, asin_cin7, 'orders')
     orders = orders[['Cin7', 'Year', 'Month', 'Day', 'Market Place', 'Sales Channel',
                      'Qty', 'Price', 'Price/Qty']]
     orders_amazon = orders[orders['Sales Channel'] != 'Non-Amazon']
@@ -314,6 +327,8 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
 
     calc_historical_ppc_organic_reallocated = \
         reallocate_ppc_qty(calc_historical_ppc_organic, sales_ppc, calc_orders_portion)
+    calc_historical_ppc_organic_reallocated = calc_historical_ppc_organic_reallocated.drop_duplicates()
+
     calc_historical_ppc_reallocated = calc_historical_ppc_organic_reallocated[[
         'Cin7', 'Market Place', 'Year', 'Month', 'Avg Sale Price', 'PPC Orders']]
     calc_historical_ppc_reallocated = calc_historical_ppc_reallocated.rename(columns={'PPC Orders': 'Qty'})
@@ -330,7 +345,7 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
     sum_wholesale = summarize_by_sales_type(wholesale, cin7_product, 'Wholesale')
 
     summarized_output_file = pd.concat([sum_liq, sum_prom, sum_ppc, sum_org,
-                                        sum_shopify, sum_wholesale], ignore_index=True)
+                                        sum_shopify, sum_wholesale], ignore_index=True, sort=True)
 
     summarized_output_file = add_out_of_stock_days(summarized_output_file, out_of_stock)
     summarized_output_file = summarized_output_file.rename(columns={'Market Place': 'Country'})
