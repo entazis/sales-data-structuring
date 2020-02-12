@@ -147,7 +147,7 @@ def calculate_ppc_portions(df):
 def reallocate_ppc_qty(ppc_organic, sales_ppc, portion):
     try:
         monthly_ppc_organic_sum = (ppc_organic.groupby(
-            ['Cin7', 'Market Place', 'Year', 'Month', 'Brand', 'Product Group', ], as_index=False)
+            ['Cin7', 'Market Place', 'Year', 'Month', 'Brand', 'Product Group'], as_index=False)
               .agg({'Qty': 'sum', 'Price/Qty': 'mean'})
               .rename(columns={'Qty': 'Product Sum', 'Price/Qty': 'Avg Sale Price'}))
 
@@ -160,7 +160,8 @@ def reallocate_ppc_qty(ppc_organic, sales_ppc, portion):
 
         monthly_ppc_organic_sum['Date'] = monthly_ppc_organic_sum\
             .apply(lambda row: datetime.strptime(str(row['Year']) + row['Month'], '%Y%B'), axis=1)
-        monthly_ppc_organic_sum = monthly_ppc_organic_sum.sort_values(['Cin7', 'Date'], ascending=[True, True])
+        monthly_ppc_organic_sum = monthly_ppc_organic_sum.sort_values(
+            ['Cin7', 'Date'], ascending=[True, True]).reset_index(drop=True)
         monthly_ppc_organic_sum['Portion'] = monthly_ppc_organic_sum.groupby(
             ['Cin7', 'Market Place'])['Portion']\
             .rolling(2, min_periods=1).mean()\
@@ -270,7 +271,6 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
 
     liquidation_orders = get_liquidation_orders(orders_amazon, liquidation_limit)
 
-    calc_historical_total_sales = calculate_historical_table(orders)
     calc_historical_liquidation = calculate_historical_table(liquidation_orders)
     calc_historical_non_amazon = calculate_historical_table(orders_non_amazon)
     calc_historical_amazon = calculate_historical_table(orders_amazon)
@@ -310,6 +310,7 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
 
     calc_historical_ppc_organic = match_cin7_product(calc_historical_ppc_organic, cin7_product)
     calc_orders_portion = calculate_ppc_portions(calc_historical_ppc_organic)
+    calc_orders_portion = calc_orders_portion.drop_duplicates()
 
     calc_historical_ppc_organic_reallocated = \
         reallocate_ppc_qty(calc_historical_ppc_organic, sales_ppc, calc_orders_portion)
@@ -392,7 +393,7 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
         'Calc-SUM-PPC-Orders'
     )
     gservice.upload_data_to_sheet(
-        gservice.format_for_google_sheet_upload(calc_orders_portion),
+        gservice.format_for_google_sheet_upload(match_cin7_product(calc_orders_portion, cin7_product)),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Orders-portion'
     )
