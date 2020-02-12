@@ -52,16 +52,28 @@ def format_calculations_for_output(df, cin7_product, out_of_stock, sales_channel
     output = add_out_of_stock_days(df, out_of_stock)
 
     output = match_cin7_product(output, cin7_product)
-    output['Revenue'] = output['Qty'] * output['Price/Qty']
-    output['Date'] = pd.to_datetime(output['Year'].astype(str) + ' ' + output['Month'] + ' ' + output['Day'].astype(str),
-                                    format='%Y %B %d').dt.strftime('%m/%d/%Y')
+
     output['Sales Type'] = sales_type
     output['Sales Channel'] = sales_channel
     output = output.rename(columns={'Market Place': 'Country'})
 
-    output = output[['Brand', 'Country', 'Sales Channel', 'Product Group', 'Cin7',
-                     'Sales Type', 'Date', 'Year', 'Month', 'Day', 'Qty',
-                     'Out of stock days', 'Price/Qty', 'Revenue']]
+    if (sales_type == 'PPC') | (sales_type == 'Organic'):
+        output['Revenue'] = output['Qty'] * output['Avg Sale Price']
+        output['Date'] = pd.to_datetime(
+            output['Year'].astype(str) + ' ' + output['Month'].astype(str),
+            format='%Y %B').dt.strftime('%m/%d/%Y')
+        output = output[['Brand', 'Country', 'Sales Channel', 'Product Group', 'Cin7',
+                         'Sales Type', 'Date', 'Year', 'Month', 'Qty',
+                         'Out of stock days', 'Avg Sale Price', 'Revenue']]
+    else:
+        output['Revenue'] = output['Qty'] * output['Price/Qty']
+        output['Date'] = pd.to_datetime(
+            output['Year'].astype(str) + ' ' + output['Month'] + ' ' + output['Day'].astype(str),
+            format='%Y %B %d').dt.strftime('%m/%d/%Y')
+        output = output[['Brand', 'Country', 'Sales Channel', 'Product Group', 'Cin7',
+                         'Sales Type', 'Date', 'Year', 'Month', 'Day', 'Qty',
+                         'Out of stock days', 'Price/Qty', 'Revenue']]
+
     return output
 
 
