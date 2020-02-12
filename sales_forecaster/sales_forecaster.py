@@ -4,6 +4,7 @@ import glob
 from dotenv import load_dotenv
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 import parser
 import gservice
@@ -126,10 +127,15 @@ def calculate_ppc_portions(df):
     ])['Qty'].sum().reset_index().rename(columns={'Qty': 'Category Sum'})
 
     try:
-        df_with_brand_pg_sum = pd.merge(df, monthly_brand_pg_sum,
+        monthly_cin7_sum = df.groupby([
+            'Cin7', 'Market Place', 'Year', 'Month', 'Brand', 'Product Group'
+        ])['Qty'].sum().reset_index().rename(columns={'Qty': 'Product Sum'})
+
+        df_with_brand_pg_sum = pd.merge(monthly_cin7_sum, monthly_brand_pg_sum,
                                         how='left',
                                         on=['Market Place', 'Year', 'Month', 'Brand', 'Product Group'])
-        df_with_brand_pg_sum['Portion'] = df_with_brand_pg_sum['Qty'] / df_with_brand_pg_sum['Category Sum']
+
+        df_with_brand_pg_sum['Portion'] = df_with_brand_pg_sum['Product Sum'] / df_with_brand_pg_sum['Category Sum']
         df_with_brand_pg_sum.fillna(0, inplace=True)
 
         return df_with_brand_pg_sum[['Cin7', 'Market Place', 'Year', 'Month', 'Portion']]
@@ -140,20 +146,35 @@ def calculate_ppc_portions(df):
 
 def reallocate_ppc_qty(ppc_organic, sales_ppc, portion):
     try:
-        ppc_organic = pd.merge(ppc_organic, portion,
+        monthly_ppc_organic_sum = (ppc_organic.groupby(
+            ['Cin7', 'Market Place', 'Year', 'Month', 'Brand', 'Product Group', ], as_index=False)
+              .agg({'Qty': 'sum', 'Price/Qty': 'mean'})
+              .rename(columns={'Qty': 'Product Sum', 'Price/Qty': 'Avg Sale Price'}))
+
+        monthly_ppc_organic_sum = pd.merge(monthly_ppc_organic_sum, portion,
                                how='left',
                                on=['Cin7', 'Market Place', 'Year', 'Month'])
-        ppc_organic = pd.merge(ppc_organic, sales_ppc,
+        monthly_ppc_organic_sum = pd.merge(monthly_ppc_organic_sum, sales_ppc,
                                how='left',
                                on=['Market Place', 'Year', 'Month', 'Brand', 'Product Group'])
-        ppc_organic['PPC Orders'] = ppc_organic['PPC Orders'] * ppc_organic['Portion']
-        ppc_organic.fillna(0, inplace=True)
 
-        ppc_organic['Organic Orders'] = ppc_organic['Qty'] - ppc_organic['PPC Orders']
-        ppc_organic = ppc_organic.round()
+        monthly_ppc_organic_sum['Date'] = monthly_ppc_organic_sum\
+            .apply(lambda row: datetime.strptime(str(row['Year']) + row['Month'], '%Y%B'), axis=1)
+        monthly_ppc_organic_sum = monthly_ppc_organic_sum.sort_values(['Cin7', 'Date'], ascending=[True, True])
+        monthly_ppc_organic_sum['Portion'] = monthly_ppc_organic_sum.groupby(
+            ['Cin7', 'Market Place'])['Portion']\
+            .rolling(2, min_periods=1).mean()\
+            .reset_index(drop=True)
 
-        return ppc_organic[['Cin7', 'Market Place', 'Year', 'Month',
-                            'Qty', 'Price/Qty', 'PPC Orders', 'Organic Orders']]
+        monthly_ppc_organic_sum['PPC Orders'] = monthly_ppc_organic_sum['PPC Orders'] * \
+                                                            monthly_ppc_organic_sum['Portion']
+
+        monthly_ppc_organic_sum['Organic Orders'] = monthly_ppc_organic_sum['Product Sum'] - \
+                                                    monthly_ppc_organic_sum['PPC Orders']
+        monthly_ppc_organic_sum = monthly_ppc_organic_sum.round()
+
+        return monthly_ppc_organic_sum[['Cin7', 'Market Place', 'Year', 'Month',
+                                        'Product Sum', 'Avg Sale Price', 'PPC Orders', 'Organic Orders']]
     except KeyError:
         print('Could not reallocate the PPC Orders.')
         return ppc_organic
@@ -242,6 +263,13 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
                                                on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'],
                                                suffixes=('_amazon', '_liquidation'))
         calc_historical_ppc_organic.fillna(0, inplace=True)
+        calc_historical_ppc_organic['Qty'] = calc_historical_ppc_organic['Qty_amazon'] \
+                                             - calc_historical_ppc_organic['Qty_liquidation']
+        calc_historical_ppc_organic['Price/Qty'] = calc_historical_ppc_organic['Price/Qty_amazon']
+        calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
+                                      ~calc_historical_ppc_organic.columns.str.endswith('_amazon')]
+        calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
+                                      ~calc_historical_ppc_organic.columns.str.endswith('_liquidation')]
     except KeyError:
         print('Could not match the liquidation orders with amazon orders.')
         calc_historical_ppc_organic = calc_historical_amazon
@@ -251,25 +279,16 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
                                                how='left',
                                                on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'],
                                                suffixes=('_amazon', '_promotion'))
-        calc_historical_ppc_organic.rename(columns={'Qty': 'Qty_promotion', 'Price/Qty': 'Price/Qty_promotion'},
-                                           inplace=True)
         calc_historical_ppc_organic.fillna(0, inplace=True)
-    except KeyError:
-        print('Could not match the promotion orders with amazon orders.')
-
-    try:
         calc_historical_ppc_organic['Qty'] = calc_historical_ppc_organic['Qty_amazon'] \
-                                             - calc_historical_ppc_organic['Qty_liquidation'] \
                                              - calc_historical_ppc_organic['Qty_promotion']
         calc_historical_ppc_organic['Price/Qty'] = calc_historical_ppc_organic['Price/Qty_amazon']
         calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
                                       ~calc_historical_ppc_organic.columns.str.endswith('_amazon')]
         calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
-                                      ~calc_historical_ppc_organic.columns.str.endswith('_liquidation')]
-        calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
                                       ~calc_historical_ppc_organic.columns.str.endswith('_promotion')]
     except KeyError:
-        print('Could not subtract the liquidation and/or promotion orders from amazon orders.')
+        print('Could not match the promotion orders with amazon orders.')
 
     calc_historical_ppc_organic = match_cin7_product(calc_historical_ppc_organic, cin7_product)
     calc_orders_portion = calculate_ppc_portions(calc_historical_ppc_organic)
@@ -277,16 +296,16 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
     calc_historical_ppc_organic_reallocated = \
         reallocate_ppc_qty(calc_historical_ppc_organic, sales_ppc, calc_orders_portion)
     calc_historical_ppc_reallocated = calc_historical_ppc_organic_reallocated[[
-        'Cin7', 'Market Place', 'Year', 'Month', 'Day', 'Price/Qty', 'PPC Orders']]
+        'Cin7', 'Market Place', 'Year', 'Month', 'Avg Sale Price', 'PPC Orders']]
     calc_historical_ppc_reallocated = calc_historical_ppc_reallocated.rename(columns={'PPC Orders': 'Qty'})
-    calc_historical_organic_reallocated = calc_historical_ppc_organic_reallocated[[
-        'Cin7', 'Market Place', 'Year', 'Month', 'Day', 'Price/Qty', 'Organic Orders']]
-    calc_historical_organic_reallocated = calc_historical_organic_reallocated.rename(columns={'Organic Orders': 'Qty'})
+    calc_historical_organic = calc_historical_ppc_organic_reallocated[[
+        'Cin7', 'Market Place', 'Year', 'Month', 'Avg Sale Price', 'Organic Orders']]
+    calc_historical_organic = calc_historical_organic.rename(columns={'Organic Orders': 'Qty'})
 
     sum_liq = summarize_by_sales_type(calc_historical_liquidation, cin7_product, 'Liquidations')
     sum_prom = summarize_by_sales_type(promotions, cin7_product, 'Promotions')
     sum_ppc = summarize_by_sales_type(calc_historical_ppc_reallocated, cin7_product, 'PPC')
-    sum_org = summarize_by_sales_type(calc_historical_organic_reallocated, cin7_product, 'Organic')
+    sum_org = summarize_by_sales_type(calc_historical_organic, cin7_product, 'Organic')
 
     sum_shopify = summarize_by_sales_type(shopify, cin7_product, 'Shopify')
     sum_wholesale = summarize_by_sales_type(wholesale, cin7_product, 'Wholesale')
