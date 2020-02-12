@@ -15,10 +15,15 @@ def parse_liquidation_limits(df):
 
 def parse_orders(df):
     df = df.loc[:, ['Order Date', 'Market Place', 'ASIN', 'Price', 'Qty', 'Refunded', 'Sales Channel', 'Customer Pays']]
-    df.loc[:, ['Price', 'Customer Pays']] = df.loc[:, ['Price', 'Customer Pays']]\
+    df.loc[:, ['Price', 'Customer Pays']] = df.loc[:, ['Price', 'Customer Pays']] \
         .replace('[\$,]', '', regex=True) \
         .replace('[\£,]', '', regex=True) \
         .replace('', np.nan)
+
+    nan_price = df[df['Price'].isnull()]
+    if nan_price.shape[0] > 0:
+        print('The price is not available for these orders:\n', nan_price)
+
     df.dropna(subset=['Price', 'Customer Pays'], inplace=True)
     df.loc[:, ['Qty', 'Price', 'Customer Pays']] = df.loc[:, ['Qty', 'Price', 'Customer Pays']].astype(float)
 
@@ -28,7 +33,12 @@ def parse_orders(df):
     df.drop(['Order Date'], axis=1, inplace=True)
 
     df['Price/Qty'] = df['Price'] / df['Qty']
-    df.fillna(0, inplace=True)
+
+    nan_unit_price = df[df['Price/Qty'].isnull()]
+    if nan_unit_price.shape[0] > 0:
+        print('Price/Qty is not available for these orders:\n', nan_unit_price)
+
+    df.dropna(subset=['Price/Qty'], inplace=True)
 
     return df
 
@@ -42,10 +52,14 @@ def parse_out_of_stock_days(df):
 
 
 def parse_historical_table(df):
-    df = df.astype({'Year': 'int'})
-    df = df.astype({'Day': 'int'})
-    df = df.astype({'Qty': 'int'})
-    df = df.astype({'Price/Qty': 'float'})
+    try:
+        df = df.astype({'Year': 'int'})
+        df = df.astype({'Day': 'int'})
+        df = df.astype({'Qty': 'int'})
+        df = df.astype({'Price/Qty': 'float'})
+    except KeyError:
+        print("Could not parse historical table. It may be empty.")
+
     return df
 
 

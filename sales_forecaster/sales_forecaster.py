@@ -10,32 +10,46 @@ import gservice
 
 
 def get_liquidation_orders(orders_df, liquidataion_limit_df):
-    orders_with_liquidation_limit = pd.merge(orders_df, liquidataion_limit_df,
-                                             how='left',
-                                             on=['Cin7', 'Year', 'Month'])
-    orders_with_liquidation_limit.dropna(subset=['Price Limit'], inplace=True)
+    try:
+        orders_with_liquidation_limit = pd.merge(orders_df, liquidataion_limit_df,
+                                                 how='left',
+                                                 on=['Cin7', 'Year', 'Month'])
 
-    orders_liquidation = orders_with_liquidation_limit[
-        orders_with_liquidation_limit['Price/Qty'] <= orders_with_liquidation_limit['Price Limit']
-        ]
+        nan_limit = orders_with_liquidation_limit[orders_with_liquidation_limit['Price Limit'].isnull()]
+        if nan_limit.shape[0] > 0:
+            print('Liquidation limit is not available for these orders:\n', nan_limit)
 
-    orders_liquidation = orders_liquidation.drop(['Liquidation Limit', 'Normal Price', 'Price Limit'], axis=1)
-    return orders_liquidation
+        orders_with_liquidation_limit.dropna(subset=['Price Limit'], inplace=True)
+
+        orders_liquidation = orders_with_liquidation_limit[
+            orders_with_liquidation_limit['Price/Qty'] <= orders_with_liquidation_limit['Price Limit']
+            ]
+
+        orders_liquidation = orders_liquidation.drop(['Liquidation Limit', 'Normal Price', 'Price Limit'], axis=1)
+        return orders_liquidation
+    except KeyError:
+        print("Could not match orders with liquidation limits. It may not have found liquidation limits.")
+        return pd.DataFrame()
 
 
 def add_out_of_stock_days(orders_df, out_of_stock_df):
-    orders_with_out_of_stock_days = pd.merge(
-        orders_df,
-        out_of_stock_df[['Cin7', 'Year', 'Month', 'Market Place', 'Out of stock days']],
-        how='left',
-        on=['Cin7', 'Year', 'Month', 'Market Place'])
-    orders_with_out_of_stock_days.fillna(0, inplace=True)
+    try:
+        orders_with_out_of_stock_days = pd.merge(
+            orders_df,
+            out_of_stock_df[['Cin7', 'Year', 'Month', 'Market Place', 'Out of stock days']],
+            how='left',
+            on=['Cin7', 'Year', 'Month', 'Market Place'])
+        orders_with_out_of_stock_days.fillna(0, inplace=True)
+        return orders_with_out_of_stock_days
+    except KeyError:
+        print("Could not add stock out days.")
+        return orders_df
 
-    return orders_with_out_of_stock_days
 
+def format_calculations_for_output(df, cin7_product, out_of_stock, sales_channel, sales_type):
+    output = add_out_of_stock_days(df, out_of_stock)
 
-def format_calculations_for_output(df, cin7_product, sales_channel, sales_type):
-    output = match_cin7_product(df, cin7_product)
+    output = match_cin7_product(output, cin7_product)
     output['Revenue'] = output['Qty'] * output['Price/Qty']
     output['Date'] = pd.to_datetime(output['Year'].astype(str) + ' ' + output['Month'] + ' ' + output['Day'].astype(str),
                                     format='%Y %B %d').dt.strftime('%m/%d/%Y')
@@ -50,25 +64,33 @@ def format_calculations_for_output(df, cin7_product, sales_channel, sales_type):
 
 
 def match_asin_cin7(df, asin_cin7_map):
-    matched = pd.merge(df, asin_cin7_map,
-                       how='left',
-                       left_on='ASIN',
-                       right_on='Amazon-ASIN')
-    matched.drop(['Amazon-ASIN'], axis=1, inplace=True)
+    try:
+        matched = pd.merge(df, asin_cin7_map,
+                           how='left',
+                           left_on='ASIN',
+                           right_on='Amazon-ASIN')
+        matched.drop(['Amazon-ASIN'], axis=1, inplace=True)
 
-    nan_matched = matched[matched['Cin7'].isnull()]
-    if nan_matched.shape[0] > 0:
-        print('Did not found cin7 for the following ASINs:\n', nan_matched['ASIN'])
+        nan_matched = matched[matched['Cin7'].isnull()]
+        if nan_matched.shape[0] > 0:
+            print('Did not found cin7 for the following ASINs:\n', nan_matched['ASIN'])
 
-    matched.dropna(subset=['Cin7'], inplace=True)
-    return matched
+        matched.dropna(subset=['Cin7'], inplace=True)
+        return matched
+    except KeyError:
+        print('Could not match the ASIN to the orders.')
+        return df
 
 
 def match_cin7_product(df, cin7_product_map):
-    matched = pd.merge(df, cin7_product_map,
-                       how='left',
-                       on='Cin7')
-    return matched
+    try:
+        matched = pd.merge(df, cin7_product_map,
+                           how='left',
+                           on='Cin7')
+        return matched
+    except KeyError:
+        print('Could not match the product details to the orders.')
+        return df
 
 
 def calculate_historical_table(df):
@@ -87,45 +109,49 @@ def calculate_historical_table(df):
 
 def sum_ppc_orders_by_product_group(df):
     qty_sum = df.groupby([
-        'Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'
+        'Market Place', 'Year', 'Month', 'Brand', 'Product Group'
     ])['PPC Orders'].sum()
     ppc_sums = qty_sum.reset_index()
     return ppc_sums
 
 
 def calculate_ppc_portions(df):
-    daily_brand_pg_sum = df.groupby([
-        'Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'
+    monthly_brand_pg_sum = df.groupby([
+        'Market Place', 'Year', 'Month', 'Brand', 'Product Group'
     ])['Qty'].sum().reset_index().rename(columns={'Qty': 'Category Sum'})
 
-    df_with_brand_pg_sum = pd.merge(df, daily_brand_pg_sum,
-                                    how='left',
-                                    on=['Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'])
-    df_with_brand_pg_sum['Portion'] = df_with_brand_pg_sum['Qty'] / df_with_brand_pg_sum['Category Sum']
+    try:
+        df_with_brand_pg_sum = pd.merge(df, monthly_brand_pg_sum,
+                                        how='left',
+                                        on=['Market Place', 'Year', 'Month', 'Brand', 'Product Group'])
+        df_with_brand_pg_sum['Portion'] = df_with_brand_pg_sum['Qty'] / df_with_brand_pg_sum['Category Sum']
+        df_with_brand_pg_sum.fillna(0, inplace=True)
 
-    # this is because the self-generated dummy data would break the code
-    df_with_brand_pg_sum = df_with_brand_pg_sum.replace([np.inf, -np.inf], np.nan)
-
-    df_with_brand_pg_sum.fillna(0, inplace=True)
-
-    return df_with_brand_pg_sum[['Cin7', 'Market Place', 'Year', 'Month', 'Day', 'Portion']]
+        return df_with_brand_pg_sum[['Cin7', 'Market Place', 'Year', 'Month', 'Portion']]
+    except KeyError:
+        print('Could not calculate the distribution of PPC Orders.')
+        return df
 
 
 def reallocate_ppc_qty(ppc_organic, sales_ppc, portion):
-    ppc_organic = pd.merge(ppc_organic, portion,
-                           how='left',
-                           on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'])
-    ppc_organic = pd.merge(ppc_organic, sales_ppc,
-                           how='left',
-                           on=['Market Place', 'Year', 'Month', 'Day', 'Brand', 'Product Group'])
-    ppc_organic['PPC Orders'] = ppc_organic['PPC Orders'] * ppc_organic['Portion']
-    ppc_organic.fillna(0, inplace=True)
+    try:
+        ppc_organic = pd.merge(ppc_organic, portion,
+                               how='left',
+                               on=['Cin7', 'Market Place', 'Year', 'Month'])
+        ppc_organic = pd.merge(ppc_organic, sales_ppc,
+                               how='left',
+                               on=['Market Place', 'Year', 'Month', 'Brand', 'Product Group'])
+        ppc_organic['PPC Orders'] = ppc_organic['PPC Orders'] * ppc_organic['Portion']
+        ppc_organic.fillna(0, inplace=True)
 
-    ppc_organic['Organic Orders'] = ppc_organic['Qty'] - ppc_organic['PPC Orders']
-    ppc_organic = ppc_organic.round()
+        ppc_organic['Organic Orders'] = ppc_organic['Qty'] - ppc_organic['PPC Orders']
+        ppc_organic = ppc_organic.round()
 
-    return ppc_organic[['Cin7', 'Market Place', 'Year', 'Month', 'Day',
-                        'Qty', 'Price/Qty', 'PPC Orders', 'Organic Orders']]
+        return ppc_organic[['Cin7', 'Market Place', 'Year', 'Month',
+                            'Qty', 'Price/Qty', 'PPC Orders', 'Organic Orders']]
+    except KeyError:
+        print('Could not reallocate the PPC Orders.')
+        return ppc_organic
 
 
 def summarize_by_sales_type(df, cin7_product_map, sales_type):
@@ -158,7 +184,7 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
     sales_files = glob.glob(sales_regex)
 
     # TODO implement for handling shopify
-    shopify_files = glob.glob((shopify_regex))
+    shopify_files = glob.glob(shopify_regex)
 
     cin7_product = gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Cin7-Product-Map')
     asin_cin7 = gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-ASIN-Cin7-Map')
@@ -186,6 +212,11 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
     out_of_stock = parser.read_out_of_stock_csv(stock_out_files)
     out_of_stock = match_asin_cin7(out_of_stock, asin_cin7)
 
+    sales = parser.read_sales_xlsx(sales_files)
+    sales = match_asin_cin7(sales, asin_cin7)
+    sales = match_cin7_product(sales, cin7_product)
+    sales_ppc = sum_ppc_orders_by_product_group(sales)
+
     orders = parser.read_orders_csv(order_files)
     orders = match_asin_cin7(orders, asin_cin7)
     orders = orders[['Cin7', 'Year', 'Month', 'Day', 'Market Place', 'Sales Channel',
@@ -200,37 +231,43 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
     calc_historical_non_amazon = calculate_historical_table(orders_non_amazon)
     calc_historical_amazon = calculate_historical_table(orders_amazon)
 
-    calc_historical_ppc_organic = pd.merge(calc_historical_amazon, calc_historical_liquidation,
-                                           how='left',
-                                           on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'],
-                                           suffixes=('_amazon', '_liquidation'))
-    calc_historical_ppc_organic.fillna(0, inplace=True)
-    calc_historical_ppc_organic = pd.merge(calc_historical_ppc_organic, promotions,
-                                           how='left',
-                                           on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'],
-                                           suffixes=('_amazon', '_promotion'))
-    calc_historical_ppc_organic.rename(columns={'Qty': 'Qty_promotion', 'Price/Qty': 'Price/Qty_promotion'},
-                                       inplace=True)
-    calc_historical_ppc_organic.fillna(0, inplace=True)
-    calc_historical_ppc_organic['Qty'] = calc_historical_ppc_organic['Qty_amazon'] \
-                                         - calc_historical_ppc_organic['Qty_liquidation'] \
-                                         - calc_historical_ppc_organic['Qty_promotion']
-    calc_historical_ppc_organic['Price/Qty'] = calc_historical_ppc_organic['Price/Qty_amazon']
+    try:
+        calc_historical_ppc_organic = pd.merge(calc_historical_amazon, calc_historical_liquidation,
+                                               how='left',
+                                               on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'],
+                                               suffixes=('_amazon', '_liquidation'))
+        calc_historical_ppc_organic.fillna(0, inplace=True)
+    except KeyError:
+        print('Could not match the liquidation orders with amazon orders.')
+        calc_historical_ppc_organic = calc_historical_amazon
 
-    calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
-                                  ~calc_historical_ppc_organic.columns.str.endswith('_amazon')]
-    calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
-                                  ~calc_historical_ppc_organic.columns.str.endswith('_liquidation')]
-    calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
-                                  ~calc_historical_ppc_organic.columns.str.endswith('_promotion')]
+    try:
+        calc_historical_ppc_organic = pd.merge(calc_historical_ppc_organic, promotions,
+                                               how='left',
+                                               on=['Cin7', 'Market Place', 'Year', 'Month', 'Day'],
+                                               suffixes=('_amazon', '_promotion'))
+        calc_historical_ppc_organic.rename(columns={'Qty': 'Qty_promotion', 'Price/Qty': 'Price/Qty_promotion'},
+                                           inplace=True)
+        calc_historical_ppc_organic.fillna(0, inplace=True)
+    except KeyError:
+        print('Could not match the promotion orders with amazon orders.')
+
+    try:
+        calc_historical_ppc_organic['Qty'] = calc_historical_ppc_organic['Qty_amazon'] \
+                                             - calc_historical_ppc_organic['Qty_liquidation'] \
+                                             - calc_historical_ppc_organic['Qty_promotion']
+        calc_historical_ppc_organic['Price/Qty'] = calc_historical_ppc_organic['Price/Qty_amazon']
+        calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
+                                      ~calc_historical_ppc_organic.columns.str.endswith('_amazon')]
+        calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
+                                      ~calc_historical_ppc_organic.columns.str.endswith('_liquidation')]
+        calc_historical_ppc_organic = calc_historical_ppc_organic.loc[:,
+                                      ~calc_historical_ppc_organic.columns.str.endswith('_promotion')]
+    except KeyError:
+        print('Could not subtract the liquidation and/or promotion orders from amazon orders.')
 
     calc_historical_ppc_organic = match_cin7_product(calc_historical_ppc_organic, cin7_product)
     calc_orders_portion = calculate_ppc_portions(calc_historical_ppc_organic)
-
-    sales = parser.read_sales_xlsx(sales_files)
-    sales = match_asin_cin7(sales, asin_cin7)
-    sales = match_cin7_product(sales, cin7_product)
-    sales_ppc = sum_ppc_orders_by_product_group(sales)
 
     calc_historical_ppc_organic_reallocated = \
         reallocate_ppc_qty(calc_historical_ppc_organic, sales_ppc, calc_orders_portion)
@@ -259,22 +296,22 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
                                                      'Out of stock days', 'Avg Sale Price', 'Revenue']]
 
     calc_historical_total_sales_formatted = format_calculations_for_output(
-        add_out_of_stock_days(calc_historical_total_sales, out_of_stock), cin7_product, '', ''
+        calc_historical_total_sales, cin7_product, out_of_stock, '', ''
     )
     calc_historical_amazon_formatted = format_calculations_for_output(
-        add_out_of_stock_days(calc_historical_amazon, out_of_stock), cin7_product, 'Amazon', ''
+        calc_historical_amazon, cin7_product, out_of_stock, 'Amazon', ''
     )
     calc_historical_liquidation_formatted = format_calculations_for_output(
-        add_out_of_stock_days(calc_historical_liquidation, out_of_stock), cin7_product, 'Amazon', 'Liquidation'
+        calc_historical_liquidation, cin7_product, out_of_stock, 'Amazon', 'Liquidation'
     )
     calc_historical_non_amazon_formatted = format_calculations_for_output(
-        add_out_of_stock_days(calc_historical_non_amazon, out_of_stock), cin7_product, 'Non-Amazon', ''
+        calc_historical_non_amazon, cin7_product, out_of_stock, 'Non-Amazon', ''
     )
     calc_historical_ppc_reallocated_formatted = format_calculations_for_output(
-        add_out_of_stock_days(calc_historical_ppc_reallocated, out_of_stock), cin7_product, 'Amazon', 'PPC'
+        calc_historical_liquidation, cin7_product, out_of_stock, 'Amazon', 'PPC'
     )
     calc_historical_organic_reallocated_formatted = format_calculations_for_output(
-        add_out_of_stock_days(calc_historical_organic_reallocated, out_of_stock), cin7_product, 'Amazon', 'Organic'
+        calc_historical_liquidation, cin7_product, out_of_stock, 'Amazon', 'Organic'
     )
 
     # with pd.ExcelWriter('calculations.xlsx') as writer:
@@ -293,21 +330,21 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-Total'
     )
-    # gservice.upload_data_to_sheet(
-    #     gservice.format_for_google_sheet_upload(calc_historical_amazon_formatted),
-    #     os.getenv('CALCULATIONS_SPREADSHEET_ID'),
-    #     'Calc-Historical-Amazon'
-    # )
+    gservice.upload_data_to_sheet(
+        gservice.format_for_google_sheet_upload(calc_historical_amazon_formatted),
+        os.getenv('CALCULATIONS_SPREADSHEET_ID'),
+        'Calc-Historical-Amazon'
+    )
     gservice.upload_data_to_sheet(
         gservice.format_for_google_sheet_upload(calc_historical_liquidation_formatted),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-Liquidation'
     )
-    # gservice.upload_data_to_sheet(
-    #     gservice.format_for_google_sheet_upload(calc_historical_non_amazon_formatted),
-    #     os.getenv('CALCULATIONS_SPREADSHEET_ID'),
-    #     'Calc-Historical-Non-Amazon'
-    # )
+    gservice.upload_data_to_sheet(
+        gservice.format_for_google_sheet_upload(calc_historical_non_amazon_formatted),
+        os.getenv('CALCULATIONS_SPREADSHEET_ID'),
+        'Calc-Historical-Non-Amazon'
+    )
     gservice.upload_data_to_sheet(
         gservice.format_for_google_sheet_upload(sales_ppc),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
@@ -323,11 +360,11 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
         'Calc-Historical-PPC.Reallocated'
     )
-    # gservice.upload_data_to_sheet(
-    #     gservice.format_for_google_sheet_upload(calc_historical_organic_reallocated_formatted),
-    #     os.getenv('CALCULATIONS_SPREADSHEET_ID'),
-    #     'Calc-Historical-Org.Reallocated'
-    # )
+    gservice.upload_data_to_sheet(
+        gservice.format_for_google_sheet_upload(calc_historical_organic_reallocated_formatted),
+        os.getenv('CALCULATIONS_SPREADSHEET_ID'),
+        'Calc-Historical-Org.Reallocated'
+    )
     gservice.upload_data_to_sheet(
         gservice.format_for_google_sheet_upload(summarized_output_file),
         os.getenv('CALCULATIONS_SPREADSHEET_ID'),
