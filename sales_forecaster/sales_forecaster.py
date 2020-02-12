@@ -363,10 +363,10 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
         calc_historical_non_amazon, cin7_product, out_of_stock, 'Non-Amazon', ''
     )
     calc_historical_ppc_reallocated_formatted = format_calculations_for_output(
-        calc_historical_liquidation, cin7_product, out_of_stock, 'Amazon', 'PPC'
+        calc_historical_ppc_reallocated, cin7_product, out_of_stock, 'Amazon', 'PPC'
     )
     calc_historical_organic_reallocated_formatted = format_calculations_for_output(
-        calc_historical_liquidation, cin7_product, out_of_stock, 'Amazon', 'Organic'
+        calc_historical_organic, cin7_product, out_of_stock, 'Amazon', 'Organic'
     )
     calc_historical_total_sales_formatted = pd.concat(
         [calc_historical_amazon_formatted, calc_historical_non_amazon_formatted], ignore_index=True)
@@ -430,4 +430,4 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
 
 
 if __name__ == '__main__':
-    main('ORDERS*.csv', 'INVENTORY*.csv', 'SALESPERDAY*.xlsx', '*Shopify*.csv')
+    main('ORDERS*.csv', 'INVENTORY*.csv', 'sales.xlsx', '*Shopify*.csv')
