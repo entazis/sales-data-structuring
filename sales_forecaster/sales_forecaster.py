@@ -244,7 +244,7 @@ def summarize_reallocated_sales_type(df, cin7_product_map, sales_type):
         return df
 
 
-def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
+def main(orders_regex, out_of_stock_regex, sales_regex, input_regex):
     load_dotenv()
 
     gservice.authenticate_google_sheets()
@@ -253,21 +253,27 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
     stock_out_files = glob.glob(out_of_stock_regex)
     sales_files = glob.glob(sales_regex)
 
-    # TODO implement for handling shopify
-    shopify_files = glob.glob(shopify_regex)
+    input = glob.glob(input_regex)
 
-    cin7_product = gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Cin7-Product-Map')
-    asin_cin7 = gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-ASIN-Cin7-Map')
+    cin7_product = pd.read_excel(input[0], sheet_name='Input-Cin7-Product-Map') if len(input) > 0 else \
+        gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Cin7-Product-Map')
+    asin_cin7 = pd.read_excel(input[0], sheet_name='Input-ASIN-Cin7-Map') if len(input) > 0 else \
+        gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-ASIN-Cin7-Map')
+
     liquidation_limit = parser.parse_liquidation_limits(
+        pd.read_excel(input[0], sheet_name='Input-Liquidation-Limits') if len(input) > 0 else
         gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Liquidation-Limits')
     )
     promotions = parser.parse_historical_table(
+        pd.read_excel(input[0], sheet_name='Input-Historical-Promotions') if len(input) > 0 else
         gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Promotions')
     )
     shopify = parser.parse_historical_table(
+        pd.read_excel(input[0], sheet_name='Input-Historical-Shopify') if len(input) > 0 else
         gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Shopify')
     )
     wholesale = parser.parse_historical_table(
+        pd.read_excel(input[0], sheet_name='Input-Historical-Wholesale') if len(input) > 0 else
         gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Wholesale')
     )
 
@@ -443,4 +449,4 @@ def main(orders_regex, out_of_stock_regex, sales_regex, shopify_regex):
 
 
 if __name__ == '__main__':
-    main('ORDERS*.csv', 'INVENTORY*.csv', 'sales.xlsx', '*Shopify*.csv')
+    main('ORDERS*.csv', 'INVENTORY*.csv', 'SALESPERDAY*.xlsx', '*input.xlsx')
