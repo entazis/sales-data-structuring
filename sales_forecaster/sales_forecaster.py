@@ -277,14 +277,6 @@ def main(orders_regex, out_of_stock_regex, sales_regex, input_regex):
         gservice.get_data_from_spreadsheet(os.getenv('INPUT_SPREADSHEET_ID'), 'Input-Historical-Wholesale')
     )
 
-    # with pd.ExcelWriter('input.xlsx') as writer:
-    #     cin7_product.to_excel(writer, sheet_name='Calc-Historical-Total')
-    #     asin_cin7.to_excel(writer, sheet_name='Input-ASIN-Cin7-Map')
-    #     liquidation_limit.to_excel(writer, sheet_name='Input-Liquidation-Limits')
-    #     promotions.to_excel(writer, sheet_name='Input-Historical-Promotions')
-    #     shopify.to_excel(writer, sheet_name='Input-Historical-Shopify')
-    #     wholesale.to_excel(writer, sheet_name='Input-Historical-Wholesale')
-
     out_of_stock = parser.read_out_of_stock_csv(stock_out_files)
     out_of_stock = match_asin_cin7(out_of_stock, asin_cin7, 'out-of-stock')
 
@@ -390,16 +382,16 @@ def main(orders_regex, out_of_stock_regex, sales_regex, input_regex):
     calc_historical_total_sales_formatted = pd.concat(
         [calc_historical_amazon_formatted, calc_historical_non_amazon_formatted], ignore_index=True)
 
-    # with pd.ExcelWriter('calculations.xlsx') as writer:
-    #     calc_historical_total_sales_formatted.to_excel(writer, sheet_name='Calc-Historical-Total')
-    #     calc_historical_amazon_formatted.to_excel(writer, sheet_name='Calc-Historical-Amazon')
-    #     calc_historical_liquidation_formatted.to_excel(writer, sheet_name='Calc-Historical-Liquidation')
-    #     calc_historical_non_amazon_formatted.to_excel(writer, sheet_name='Calc-Historical-Non-Amazon')
-    #     sales_ppc.to_excel(writer, sheet_name='Calc-SUM-PPC-Orders')
-    #     calc_orders_portion.to_excel(writer, sheet_name='Calc-Orders-portion')
-    #     calc_historical_ppc_reallocated_formatted.to_excel(writer, sheet_name='Calc-Historical-PPC.Reallocated')
-    #     calc_historical_organic_reallocated_formatted.to_excel(writer, sheet_name='Calc-Historical-Org.Reallocated')
-    #     summarized_output_file.to_excel(writer, sheet_name='Output File')
+    with pd.ExcelWriter('calculations.xlsx') as writer:
+        calc_historical_total_sales_formatted.to_excel(writer, sheet_name='Calc-Historical-Total')
+        calc_historical_amazon_formatted.to_excel(writer, sheet_name='Calc-Historical-Amazon')
+        calc_historical_liquidation_formatted.to_excel(writer, sheet_name='Calc-Historical-Liquidation')
+        calc_historical_non_amazon_formatted.to_excel(writer, sheet_name='Calc-Historical-Non-Amazon')
+        sales_ppc.to_excel(writer, sheet_name='Calc-SUM-PPC-Orders')
+        calc_orders_portion.to_excel(writer, sheet_name='Calc-Orders-portion')
+        calc_historical_ppc_reallocated_formatted.to_excel(writer, sheet_name='Calc-Historical-PPC.Reallocated')
+        calc_historical_organic_reallocated_formatted.to_excel(writer, sheet_name='Calc-Historical-Org.Reallocated')
+        summarized_output_file.to_excel(writer, sheet_name='Output File')
 
     gservice.upload_data_to_sheet(
         gservice.format_for_google_sheet_upload(calc_historical_total_sales_formatted),
